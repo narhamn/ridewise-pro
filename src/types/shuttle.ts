@@ -40,15 +40,17 @@ export interface Route {
 export interface RoutePoint {
   id: string;
   routeId: string;
-  code: string; // J1, J2, etc.
+  code: string;
   name: string;
   order: number;
+  lat: number;
+  lng: number;
 }
 
 export interface Schedule {
   id: string;
   routeId: string;
-  departureTime: string; // "07:00"
+  departureTime: string;
   vehicleId: string;
   driverId: string | null;
   status: 'scheduled' | 'boarding' | 'departed' | 'arrived' | 'cancelled';
@@ -62,6 +64,9 @@ export interface Seat {
   column: number;
   isAvailable: boolean;
 }
+
+export type PaymentMethod = 'bank_transfer' | 'ewallet' | 'qris';
+export type PaymentStatus = 'pending' | 'paid' | 'expired' | 'failed';
 
 export interface Booking {
   id: string;
@@ -77,6 +82,8 @@ export interface Booking {
   status: 'confirmed' | 'completed' | 'cancelled';
   bookingDate: string;
   departureTime: string;
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod | null;
 }
 
 export interface TripDetail {
@@ -94,4 +101,22 @@ export interface SeatStatus {
   column: number;
   isBooked: boolean;
   passengerName?: string;
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type: 'booking' | 'payment' | 'trip' | 'system';
+  read: boolean;
+  timestamp: string;
+  role: UserRole;
+}
+
+export interface PaymentConfig {
+  provider: 'midtrans' | 'xendit';
+  serverKey: string;
+  clientKey: string;
+  environment: 'sandbox' | 'production';
+  enabled: boolean;
 }
