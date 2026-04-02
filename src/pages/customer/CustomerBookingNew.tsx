@@ -26,6 +26,15 @@ const CustomerBookingNew = () => {
 
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
   const [selectedPickup, setSelectedPickup] = useState('');
+  const [showPayment, setShowPayment] = useState(false);
+  const [lastBookingId, setLastBookingId] = useState('');
+
+  const handlePaymentConfirm = (method: PaymentMethod) => {
+    setBookings(prev => prev.map(b => b.id === lastBookingId ? { ...b, paymentStatus: 'paid' as const, paymentMethod: method } : b));
+    setShowPayment(false);
+    toast.success('Booking & pembayaran berhasil!');
+    navigate(`/customer/booking/${lastBookingId}`);
+  };
 
   if (!schedule || !route || !vehicle) return <div className="p-4">Data tidak ditemukan</div>;
 

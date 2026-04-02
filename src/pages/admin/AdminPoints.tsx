@@ -20,7 +20,7 @@ const AdminPoints = () => {
   const filtered = filterRoute === 'all' ? routePoints : routePoints.filter(p => p.routeId === filterRoute);
 
   const handleSave = () => {
-    setRoutePoints(prev => [...prev, { id: `rp${Date.now()}`, ...form }]);
+    setRoutePoints(prev => [...prev, { id: `rp${Date.now()}`, lat: 3.5952, lng: 98.6722, ...form }]);
     toast.success('Titik jemput ditambahkan');
     setOpen(false);
   };
