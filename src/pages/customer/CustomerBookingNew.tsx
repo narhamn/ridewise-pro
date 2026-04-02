@@ -158,6 +158,13 @@ const CustomerBookingNew = () => {
           </Button>
         </CardContent>
       </Card>
+
+      <PaymentModal
+        open={showPayment}
+        onClose={() => setShowPayment(false)}
+        amount={route.price}
+        onConfirm={handlePaymentConfirm}
+      />
     </div>
   );
 };
