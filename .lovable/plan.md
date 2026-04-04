@@ -1,82 +1,36 @@
-# Penumpang Realtime ala GoCar/GrabCar
+# Gabung Modul Kendaraan + Assign Driver
 
-## Konsep
-
-Saat ini driver menambah penumpang secara manual (input nama). Fitur baru mengubah flow menjadi seperti ride-hailing:
-
-1. **Customer** melihat shuttle yang sedang jalan (status `boarding`/`departed`) dan request naik
-2. **Driver** mendapat notifikasi request masuk dan bisa **Terima** atau **Tolak**
-3. Setelah diterima, kursi otomatis terisi dan penumpang dapat e-ticket
-
-```text
-Customer                          Driver
-   │                                │
-   ├─ Lihat shuttle aktif ──────►   │
-   ├─ Pilih titik jemput + kursi    │
-   ├─ Request Naik ─────────────►   │
-   │                                ├─ Notifikasi masuk
-   │                                ├─ Terima / Tolak
-   │  ◄──────── Konfirmasi ─────────┤
-   ├─ Dapat tiket + status          │
-   └────────────────────────────────┘
-```
+Menggabungkan dua halaman terpisah (`AdminVehicles` dan `AdminAssign`) menjadi satu halaman dengan **Tabs**: "Kendaraan" dan "Assign Driver".
 
 ## Perubahan
 
-### 1. Tambah tipe `RideRequest` di `src/types/shuttle.ts`
+### 1. Gabungkan ke `AdminVehicles.tsx`
 
-- Interface baru: `RideRequest { id, userId, userName, scheduleId, routeId, pickupPointId, pickupPointName, seatNumber, price, status: 'pending' | 'accepted' | 'rejected', createdAt }`
-- Ini mewakili request customer yang menunggu konfirmasi driver
+- Gunakan komponen `Tabs` dengan 2 tab:
+  - **Tab "Kendaraan"** — isi seperti sekarang (CRUD kendaraan dengan status kendaraan)
+  - **Tab "Assign Driver"** — isi dari `AdminAssign` (tabel jadwal + dropdown assign driver)
+- Judul halaman: "Kendaraan & Assign Driver"
 
-### 2. Update Context — tambah state & fungsi ride request
+### 2. Hapus `AdminAssign.tsx`
 
-**File:** `src/contexts/ShuttleContext.tsx`
+- File tidak lagi diperlukan karena kontennya sudah masuk ke tab
 
-- State baru: `rideRequests: RideRequest[]`
-- Fungsi: `addRideRequest()`, `acceptRideRequest(id)` (buat booking otomatis), `rejectRideRequest(id)`
+### 3. Update Sidebar (`AdminLayout.tsx`)
 
-### 3. Halaman customer: "Naik Sekarang"
+- Hapus menu item "Assign Driver" (`/admin/assign`)
+- Rename "Kendaraan" menjadi "Kendaraan & Driver" (atau tetap "Kendaraan")
 
-**File baru:** `src/pages/customer/CustomerRideNow.tsx`
+### 4. Update Routing (`App.tsx`)
 
-- Tampilkan daftar shuttle yang sedang aktif (`boarding`/`departed`) dengan kursi kosong
-- Customer pilih shuttle → pilih titik jemput → pilih kursi → "Request Naik"
-- Setelah request, tampilkan status menunggu konfirmasi driver
-- Jika diterima → redirect ke booking detail  / Pembayaran / e-ticket
-- Jika ditolak → tampilkan pesan ditolak
+- Hapus route `/admin/assign`
+- Hapus import `AdminAssign`
 
-### 4. Tombol "Naik Sekarang" di CustomerHome
-
-**File:** `src/pages/customer/CustomerHome.tsx`
-
-- Tambah card/button prominent "🚐 Naik Sekarang" di atas daftar rute
-- Navigate ke `/customer/ride-now`
-
-### 5. Driver: panel request masuk di DriverTripDetail
-
-**File:** `src/pages/driver/DriverTripDetail.tsx`
-
-- Tampilkan section "Request Masuk" dengan daftar pending requests
-- Setiap request menampilkan: nama, titik jemput, kursi, harga
-- Tombol **Terima** (hijau) dan **Tolak** (merah)
-- Terima → otomatis buat booking `realtime` + `paid`, update kursi
-- Tolak → update status request jadi `rejected`
-- Tetap pertahankan tombol "+ Penumpang" manual untuk kasus tanpa smartphone
-
-### 6. Routing & Layout
-
-**File:** `src/App.tsx`
-
-- Tambah route `/customer/ride-now` → `CustomerRideNow`
-
-## Dampak File
+## File yang Diubah
 
 
-| File                                     | Aksi                                        |
-| ---------------------------------------- | ------------------------------------------- |
-| `src/types/shuttle.ts`                   | Tambah interface `RideRequest`              |
-| `src/contexts/ShuttleContext.tsx`        | State + fungsi ride request                 |
-| `src/pages/customer/CustomerRideNow.tsx` | **Baru** — halaman request naik realtime    |
-| `src/pages/customer/CustomerHome.tsx`    | Tambah tombol "Naik Sekarang"               |
-| `src/pages/driver/DriverTripDetail.tsx`  | Tambah section request masuk + terima/tolak |
-| `src/App.tsx`                            | Tambah route `/customer/ride-now`           |
+| File                                | Aksi                                           |
+| ----------------------------------- | ---------------------------------------------- |
+| `src/pages/admin/AdminVehicles.tsx` | Tambah Tabs, integrasikan konten assign driver |
+| `src/pages/admin/AdminAssign.tsx`   | **Hapus**                                      |
+| `src/layouts/AdminLayout.tsx`       | Hapus menu "Assign Driver"                     |
+| `src/App.tsx`                       | Hapus route + import AdminAssign               |
