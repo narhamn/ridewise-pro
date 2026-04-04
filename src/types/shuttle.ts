@@ -45,6 +45,9 @@ export interface RoutePoint {
   order: number;
   lat: number;
   lng: number;
+  distanceFromPrevious: number;
+  cumulativeDistance: number;
+  price: number;
 }
 
 export interface Schedule {

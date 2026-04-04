@@ -80,7 +80,7 @@ const App = () => (
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="routes" element={<AdminRoutes />} />
-                <Route path="points" element={<AdminPoints />} />
+                
                 <Route path="schedules" element={<AdminSchedules />} />
                 <Route path="drivers" element={<AdminDrivers />} />
                 <Route path="vehicles" element={<AdminVehicles />} />

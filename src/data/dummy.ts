@@ -12,30 +12,38 @@ export const dummyRoutes: Route[] = [
 ];
 
 export const dummyRoutePoints: RoutePoint[] = [
-  { id: 'rp1', routeId: 'r1', code: 'J1', name: 'Terminal Hermes', order: 1, lat: 3.5952, lng: 98.6722 },
-  { id: 'rp2', routeId: 'r1', code: 'J2', name: 'Simpang Pos', order: 2, lat: 3.5880, lng: 98.6850 },
-  { id: 'rp3', routeId: 'r1', code: 'J3', name: 'Tembung', order: 3, lat: 3.5750, lng: 98.7200 },
-  { id: 'rp4', routeId: 'r1', code: 'J4', name: 'Batang Kuis', order: 4, lat: 3.5400, lng: 98.7600 },
-  { id: 'rp5', routeId: 'r1', code: 'J5', name: 'Bandara Kualanamu', order: 5, lat: 3.6422, lng: 98.8853 },
-  { id: 'rp6', routeId: 'r2', code: 'J1', name: 'Terminal Amplas', order: 1, lat: 3.5570, lng: 98.6950 },
-  { id: 'rp7', routeId: 'r2', code: 'J2', name: 'Lubuk Pakam', order: 2, lat: 3.5550, lng: 98.8570 },
-  { id: 'rp8', routeId: 'r2', code: 'J3', name: 'Tebing Tinggi', order: 3, lat: 3.3283, lng: 99.1627 },
-  { id: 'rp9', routeId: 'r2', code: 'J4', name: 'Seribu Dolok', order: 4, lat: 2.9000, lng: 99.0500 },
-  { id: 'rp10', routeId: 'r2', code: 'J5', name: 'Parapat', order: 5, lat: 2.6640, lng: 98.9380 },
-  { id: 'rp11', routeId: 'r3', code: 'J1', name: 'Pinang Baris', order: 1, lat: 3.6100, lng: 98.6350 },
-  { id: 'rp12', routeId: 'r3', code: 'J2', name: 'Binjai', order: 2, lat: 3.6000, lng: 98.4850 },
-  { id: 'rp13', routeId: 'r3', code: 'J3', name: 'Sibolga', order: 3, lat: 1.7427, lng: 98.7792 },
-  { id: 'rp14', routeId: 'r4', code: 'J1', name: 'Medan Center', order: 1, lat: 3.5952, lng: 98.6722 },
-  { id: 'rp15', routeId: 'r4', code: 'J2', name: 'Pancur Batu', order: 2, lat: 3.4700, lng: 98.5700 },
-  { id: 'rp16', routeId: 'r4', code: 'J3', name: 'Berastagi', order: 3, lat: 3.1972, lng: 98.5081 },
-  { id: 'rp17', routeId: 'r5', code: 'J1', name: 'Medan Timur', order: 1, lat: 3.6000, lng: 98.7000 },
-  { id: 'rp18', routeId: 'r5', code: 'J2', name: 'P. Siantar', order: 2, lat: 2.9540, lng: 99.0478 },
-  { id: 'rp19', routeId: 'r6', code: 'J1', name: 'Medan Barat', order: 1, lat: 3.5900, lng: 98.6600 },
-  { id: 'rp20', routeId: 'r6', code: 'J2', name: 'Rantau Prapat', order: 2, lat: 2.0975, lng: 99.8308 },
-  { id: 'rp21', routeId: 'r7', code: 'J1', name: 'Medan Selatan', order: 1, lat: 3.5800, lng: 98.6800 },
-  { id: 'rp22', routeId: 'r7', code: 'J2', name: 'Padang Sidempuan', order: 2, lat: 1.3790, lng: 99.2718 },
-  { id: 'rp23', routeId: 'r8', code: 'J1', name: 'Medan Utara', order: 1, lat: 3.6200, lng: 98.6700 },
-  { id: 'rp24', routeId: 'r8', code: 'J2', name: 'Kisaran', order: 2, lat: 2.9833, lng: 99.6167 },
+  // r1: Hermes → Kualanamu (38km, Rp2/m)
+  { id: 'rp1', routeId: 'r1', code: 'J1', name: 'Terminal Hermes', order: 1, lat: 3.5952, lng: 98.6722, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
+  { id: 'rp2', routeId: 'r1', code: 'J2', name: 'Simpang Pos', order: 2, lat: 3.5880, lng: 98.6850, distanceFromPrevious: 5000, cumulativeDistance: 5000, price: 10000 },
+  { id: 'rp3', routeId: 'r1', code: 'J3', name: 'Tembung', order: 3, lat: 3.5750, lng: 98.7200, distanceFromPrevious: 8000, cumulativeDistance: 13000, price: 26000 },
+  { id: 'rp4', routeId: 'r1', code: 'J4', name: 'Batang Kuis', order: 4, lat: 3.5400, lng: 98.7600, distanceFromPrevious: 12000, cumulativeDistance: 25000, price: 50000 },
+  { id: 'rp5', routeId: 'r1', code: 'J5', name: 'Bandara Kualanamu', order: 5, lat: 3.6422, lng: 98.8853, distanceFromPrevious: 13000, cumulativeDistance: 38000, price: 76000 },
+  // r2: Amplas → Parapat (175km, Rp1.5/m)
+  { id: 'rp6', routeId: 'r2', code: 'J1', name: 'Terminal Amplas', order: 1, lat: 3.5570, lng: 98.6950, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
+  { id: 'rp7', routeId: 'r2', code: 'J2', name: 'Lubuk Pakam', order: 2, lat: 3.5550, lng: 98.8570, distanceFromPrevious: 25000, cumulativeDistance: 25000, price: 37500 },
+  { id: 'rp8', routeId: 'r2', code: 'J3', name: 'Tebing Tinggi', order: 3, lat: 3.3283, lng: 99.1627, distanceFromPrevious: 50000, cumulativeDistance: 75000, price: 112500 },
+  { id: 'rp9', routeId: 'r2', code: 'J4', name: 'Seribu Dolok', order: 4, lat: 2.9000, lng: 99.0500, distanceFromPrevious: 55000, cumulativeDistance: 130000, price: 195000 },
+  { id: 'rp10', routeId: 'r2', code: 'J5', name: 'Parapat', order: 5, lat: 2.6640, lng: 98.9380, distanceFromPrevious: 45000, cumulativeDistance: 175000, price: 262500 },
+  // r3: Pinang Baris → Sibolga (280km, Rp1.2/m)
+  { id: 'rp11', routeId: 'r3', code: 'J1', name: 'Pinang Baris', order: 1, lat: 3.6100, lng: 98.6350, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
+  { id: 'rp12', routeId: 'r3', code: 'J2', name: 'Binjai', order: 2, lat: 3.6000, lng: 98.4850, distanceFromPrevious: 22000, cumulativeDistance: 22000, price: 26400 },
+  { id: 'rp13', routeId: 'r3', code: 'J3', name: 'Sibolga', order: 3, lat: 1.7427, lng: 98.7792, distanceFromPrevious: 258000, cumulativeDistance: 280000, price: 336000 },
+  // r4: Medan → Berastagi (66km, Rp2/m)
+  { id: 'rp14', routeId: 'r4', code: 'J1', name: 'Medan Center', order: 1, lat: 3.5952, lng: 98.6722, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
+  { id: 'rp15', routeId: 'r4', code: 'J2', name: 'Pancur Batu', order: 2, lat: 3.4700, lng: 98.5700, distanceFromPrevious: 30000, cumulativeDistance: 30000, price: 60000 },
+  { id: 'rp16', routeId: 'r4', code: 'J3', name: 'Berastagi', order: 3, lat: 3.1972, lng: 98.5081, distanceFromPrevious: 36000, cumulativeDistance: 66000, price: 132000 },
+  // r5: Medan → P. Siantar (128km, Rp1.5/m)
+  { id: 'rp17', routeId: 'r5', code: 'J1', name: 'Medan Timur', order: 1, lat: 3.6000, lng: 98.7000, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
+  { id: 'rp18', routeId: 'r5', code: 'J2', name: 'P. Siantar', order: 2, lat: 2.9540, lng: 99.0478, distanceFromPrevious: 128000, cumulativeDistance: 128000, price: 192000 },
+  // r6: Medan → Rantau Prapat (285km, Rp1.2/m)
+  { id: 'rp19', routeId: 'r6', code: 'J1', name: 'Medan Barat', order: 1, lat: 3.5900, lng: 98.6600, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
+  { id: 'rp20', routeId: 'r6', code: 'J2', name: 'Rantau Prapat', order: 2, lat: 2.0975, lng: 99.8308, distanceFromPrevious: 285000, cumulativeDistance: 285000, price: 342000 },
+  // r7: Medan → Padang Sidempuan (390km, Rp1/m)
+  { id: 'rp21', routeId: 'r7', code: 'J1', name: 'Medan Selatan', order: 1, lat: 3.5800, lng: 98.6800, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
+  { id: 'rp22', routeId: 'r7', code: 'J2', name: 'Padang Sidempuan', order: 2, lat: 1.3790, lng: 99.2718, distanceFromPrevious: 390000, cumulativeDistance: 390000, price: 390000 },
+  // r8: Medan → Kisaran (195km, Rp1.3/m)
+  { id: 'rp23', routeId: 'r8', code: 'J1', name: 'Medan Utara', order: 1, lat: 3.6200, lng: 98.6700, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
+  { id: 'rp24', routeId: 'r8', code: 'J2', name: 'Kisaran', order: 2, lat: 2.9833, lng: 99.6167, distanceFromPrevious: 195000, cumulativeDistance: 195000, price: 253500 },
 ];
 
 export const dummyDrivers: Driver[] = [
