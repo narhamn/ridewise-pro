@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { Route, RoutePoint } from '@/types/shuttle';
 
 const AdminRoutes = () => {
-  const { routes, setRoutes, routePoints, setRoutePoints, rayonPricing, setRayonPricing, recalcRoutePointPrices } = useShuttle();
+  const { routes, setRoutes, routePoints, setRoutePoints, rayonPricing, setRayonPricing, recalcRoutePointPrices, schedules, setSchedules, vehicles } = useShuttle();
   const [openRoute, setOpenRoute] = useState(false);
   const [openPoint, setOpenPoint] = useState(false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
