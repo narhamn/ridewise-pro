@@ -2,12 +2,17 @@ import { useNavigate } from 'react-router-dom';
 import { useShuttle } from '@/contexts/ShuttleContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Clock, MapPin, Users } from 'lucide-react';
+import { Clock, MapPin, Users, CalendarDays } from 'lucide-react';
 
 const DriverTrips = () => {
   const { schedules, routes, vehicles, bookings, currentUser } = useShuttle();
   const navigate = useNavigate();
-  const mySchedules = schedules.filter(s => s.driverId === currentUser?.id);
+  const mySchedules = [...schedules.filter(s => s.driverId === currentUser?.id)]
+    .sort((a, b) => {
+      const dateComp = b.departureDate.localeCompare(a.departureDate);
+      if (dateComp !== 0) return dateComp;
+      return a.departureTime.localeCompare(b.departureTime);
+    });
 
   const statusLabel: Record<string, string> = {
     scheduled: 'Terjadwal', boarding: 'Boarding', departed: 'Berangkat', arrived: 'Tiba', cancelled: 'Batal',
@@ -28,6 +33,7 @@ const DriverTrips = () => {
                 <Badge variant="secondary">{statusLabel[s.status]}</Badge>
               </div>
               <div className="text-sm text-muted-foreground space-y-1">
+                <div className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{s.departureDate}</div>
                 <div className="flex items-center gap-1"><Clock className="h-3 w-3" />{s.departureTime}</div>
                 <div className="flex items-center gap-1"><MapPin className="h-3 w-3" />{vehicle?.plateNumber}</div>
                 <div className="flex items-center gap-1"><Users className="h-3 w-3" />{count}/{vehicle?.capacity}</div>

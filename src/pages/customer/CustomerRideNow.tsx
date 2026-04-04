@@ -20,7 +20,8 @@ const CustomerRideNow = () => {
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
 
   // Active shuttles (boarding or departed)
-  const activeSchedules = schedules.filter(s => s.status === 'boarding' || s.status === 'departed');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const activeSchedules = schedules.filter(s => (s.status === 'boarding' || s.status === 'departed') && s.departureDate === todayStr);
 
   const getScheduleInfo = (scheduleId: string) => {
     const schedule = schedules.find(s => s.id === scheduleId);

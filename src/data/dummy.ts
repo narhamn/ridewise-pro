@@ -85,17 +85,22 @@ export const dummyVehicles: Vehicle[] = [
   { id: 'v5', name: 'Hiace Premio', plateNumber: 'BK 7890 IJ', capacity: 12, type: 'Minibus', status: 'active' },
 ];
 
+// Helper: today, tomorrow, day after
+const todayStr = new Date().toISOString().split('T')[0];
+const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+const dayAfterStr = new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0];
+
 export const dummySchedules: Schedule[] = [
-  { id: 's1', routeId: 'r1', departureTime: '07:00', vehicleId: 'v1', driverId: 'd1', status: 'scheduled' },
-  { id: 's2', routeId: 'r1', departureTime: '10:00', vehicleId: 'v2', driverId: 'd2', status: 'scheduled' },
-  { id: 's3', routeId: 'r1', departureTime: '14:00', vehicleId: 'v3', driverId: 'd3', status: 'scheduled' },
-  { id: 's4', routeId: 'r2', departureTime: '08:00', vehicleId: 'v5', driverId: 'd5', status: 'scheduled' },
-  { id: 's5', routeId: 'r2', departureTime: '13:00', vehicleId: 'v1', driverId: 'd1', status: 'scheduled' },
-  { id: 's6', routeId: 'r3', departureTime: '06:00', vehicleId: 'v2', driverId: 'd2', status: 'departed' },
-  { id: 's7', routeId: 'r4', departureTime: '09:00', vehicleId: 'v3', driverId: 'd3', status: 'scheduled' },
-  { id: 's8', routeId: 'r5', departureTime: '07:30', vehicleId: 'v5', driverId: 'd5', status: 'boarding' },
-  { id: 's9', routeId: 'r6', departureTime: '11:00', vehicleId: 'v1', driverId: null, status: 'scheduled' },
-  { id: 's10', routeId: 'r7', departureTime: '05:00', vehicleId: 'v2', driverId: null, status: 'scheduled' },
+  { id: 's1', routeId: 'r1', departureDate: todayStr, departureTime: '07:00', vehicleId: 'v1', driverId: 'd1', status: 'scheduled' },
+  { id: 's2', routeId: 'r1', departureDate: todayStr, departureTime: '10:00', vehicleId: 'v2', driverId: 'd2', status: 'scheduled' },
+  { id: 's3', routeId: 'r1', departureDate: tomorrowStr, departureTime: '14:00', vehicleId: 'v3', driverId: 'd3', status: 'scheduled' },
+  { id: 's4', routeId: 'r2', departureDate: todayStr, departureTime: '08:00', vehicleId: 'v5', driverId: 'd5', status: 'scheduled' },
+  { id: 's5', routeId: 'r2', departureDate: tomorrowStr, departureTime: '13:00', vehicleId: 'v1', driverId: 'd1', status: 'scheduled' },
+  { id: 's6', routeId: 'r3', departureDate: todayStr, departureTime: '06:00', vehicleId: 'v2', driverId: 'd2', status: 'departed' },
+  { id: 's7', routeId: 'r4', departureDate: dayAfterStr, departureTime: '09:00', vehicleId: 'v3', driverId: 'd3', status: 'scheduled' },
+  { id: 's8', routeId: 'r5', departureDate: todayStr, departureTime: '07:30', vehicleId: 'v5', driverId: 'd5', status: 'boarding' },
+  { id: 's9', routeId: 'r6', departureDate: tomorrowStr, departureTime: '11:00', vehicleId: 'v1', driverId: null, status: 'scheduled' },
+  { id: 's10', routeId: 'r7', departureDate: dayAfterStr, departureTime: '05:00', vehicleId: 'v2', driverId: null, status: 'scheduled' },
 ];
 
 export const dummyBookings: Booking[] = [

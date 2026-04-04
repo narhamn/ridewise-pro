@@ -60,6 +60,7 @@ export interface RayonPricing {
 export interface Schedule {
   id: string;
   routeId: string;
+  departureDate: string;
   departureTime: string;
   vehicleId: string;
   driverId: string | null;
