@@ -27,6 +27,7 @@ const AdminBookings = () => {
                 <TableHead>Waktu</TableHead>
                 <TableHead>Kursi</TableHead>
                 <TableHead>Harga</TableHead>
+                <TableHead>Tipe</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -39,6 +40,11 @@ const AdminBookings = () => {
                   <TableCell>{b.departureTime} · {b.bookingDate}</TableCell>
                   <TableCell>#{b.seatNumber}</TableCell>
                   <TableCell>{formatRupiah(b.price)}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={b.bookingType === 'realtime' ? 'border-orange-500 text-orange-600' : 'border-primary text-primary'}>
+                      {b.bookingType === 'realtime' ? 'Realtime' : 'Terjadwal'}
+                    </Badge>
+                  </TableCell>
                   <TableCell><Badge className={statusColor[b.status]}>{b.status}</Badge></TableCell>
                 </TableRow>
               ))}

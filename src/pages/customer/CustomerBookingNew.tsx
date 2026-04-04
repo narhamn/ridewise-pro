@@ -65,6 +65,7 @@ const CustomerBookingNew = () => {
       departureTime: schedule.departureTime,
       paymentStatus: 'pending' as const,
       paymentMethod: null,
+      bookingType: 'scheduled' as const,
     };
     addBooking(newBooking);
     setLastBookingId(newBooking.id);
