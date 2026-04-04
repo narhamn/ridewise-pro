@@ -47,7 +47,7 @@ const driverStatusData = [
 ];
 
 const SuperAdminDashboard = () => {
-  const { systemConfig, auditLogs, bookings, drivers } = useShuttle();
+  const { auditLogs, bookings, drivers } = useShuttle();
 
   const totalRevenue = bookings.reduce((acc, b) => acc + b.price, 0);
   const activeDrivers = drivers.filter(d => d.status === 'active').length;
