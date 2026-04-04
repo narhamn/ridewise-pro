@@ -204,7 +204,7 @@ const DriverProfile = () => {
                 <div className="absolute top-4 right-4">
                   <Badge className={cn(
                     "rounded-full font-black text-[9px] uppercase px-3 py-1 border-none shadow-lg",
-                    driverData.vehicleDetails.verificationStatus === 'verified' ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"
+                    driverData.vehicleDetails.verificationStatus === 'approved' ? "bg-emerald-500 text-white" : "bg-amber-500 text-white"
                   )}>
                     {driverData.vehicleDetails.verificationStatus}
                   </Badge>

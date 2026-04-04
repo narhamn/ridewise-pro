@@ -182,6 +182,7 @@ const DriverTracking = () => {
         
         // Update context
         updateDriverLocation(currentUser.id, {
+          driverId: currentUser.id,
           latitude,
           longitude,
           speed,
