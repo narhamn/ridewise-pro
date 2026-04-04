@@ -23,6 +23,8 @@ const AdminRoutes = () => {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [routeForm, setRouteForm] = useState({ name: '', rayon: 'A' as Route['rayon'], origin: '', destination: '', pricePerMeter: 2 });
   const [pointForm, setPointForm] = useState({ code: '', name: '', distanceFromPrevious: 0, lat: 3.5952, lng: 98.6722 });
+  const [openSchedule, setOpenSchedule] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({ routeId: '', departureTime: '', vehicleId: '' });
 
   const selectedRoute = routes.find(r => r.id === selectedRouteId);
   const points = routePoints.filter(p => p.routeId === selectedRouteId).sort((a, b) => a.order - b.order);
