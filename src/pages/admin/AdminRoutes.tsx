@@ -489,6 +489,61 @@ const AdminRoutes = () => {
             </div>
           )}
         </TabsContent>
+
+        {/* === SCHEDULES TAB === */}
+        <TabsContent value="schedules" className="space-y-4">
+          <div className="flex justify-end">
+            <Dialog open={openSchedule} onOpenChange={setOpenSchedule}>
+              <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" />Tambah Jadwal</Button></DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Tambah Jadwal</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div><Label>Rute</Label>
+                    <Select value={scheduleForm.routeId} onValueChange={v => setScheduleForm({...scheduleForm, routeId: v})}>
+                      <SelectTrigger><SelectValue placeholder="Pilih rute" /></SelectTrigger>
+                      <SelectContent>{routes.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Jam Berangkat</Label><Input type="time" value={scheduleForm.departureTime} onChange={e => setScheduleForm({...scheduleForm, departureTime: e.target.value})} /></div>
+                  <div><Label>Kendaraan</Label>
+                    <Select value={scheduleForm.vehicleId} onValueChange={v => setScheduleForm({...scheduleForm, vehicleId: v})}>
+                      <SelectTrigger><SelectValue placeholder="Pilih kendaraan" /></SelectTrigger>
+                      <SelectContent>{vehicles.filter(v => v.status === 'active').map(v => <SelectItem key={v.id} value={v.id}>{v.name} ({v.plateNumber})</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <Button className="w-full" onClick={handleSaveSchedule}>Simpan</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Rute</TableHead>
+                    <TableHead>Waktu</TableHead>
+                    <TableHead>Kendaraan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {schedules.map(s => (
+                    <TableRow key={s.id}>
+                      <TableCell>{routes.find(r => r.id === s.routeId)?.name}</TableCell>
+                      <TableCell className="font-mono">{s.departureTime}</TableCell>
+                      <TableCell>{vehicles.find(v => v.id === s.vehicleId)?.name}</TableCell>
+                      <TableCell><Badge variant="secondary">{s.status}</Badge></TableCell>
+                      <TableCell><Button variant="ghost" size="icon" onClick={() => handleDeleteSchedule(s.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
