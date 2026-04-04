@@ -15,7 +15,12 @@ import QRScanner from '@/components/QRScanner';
 const DriverTripDetail = () => {
   const { scheduleId } = useParams();
   const navigate = useNavigate();
-  const { schedules, routes, routePoints, vehicles, bookings, addBooking, updateScheduleStatus, rideRequests, acceptRideRequest, rejectRideRequest, checkInPassenger } = useShuttle();
+  const {
+    schedules, routes, routePoints, vehicles, bookings,
+    addBooking, updateScheduleStatus, rideRequests,
+    acceptRideRequest, rejectRideRequest, checkInPassenger,
+  } = useShuttle();
+
   const [scanOpen, setScanOpen] = useState(false);
   const [scanInput, setScanInput] = useState('');
   const [scanMode, setScanMode] = useState<'camera' | 'manual'>('camera');
@@ -26,11 +31,8 @@ const DriverTripDetail = () => {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
 
   const processTicketData = useCallback((data: string) => {
-    try {
-      const parsed = JSON.parse(data);
-      const bookingId = parsed.id;
+    const validate = (bookingId: string) => {
       const found = bookings.find(b => b.id === bookingId);
-
       if (found && found.scheduleId === scheduleId) {
         if (found.checkedIn) {
           toast.warning(`⚠️ ${found.userName} sudah check-in sebelumnya (Kursi #${found.seatNumber})`);
@@ -43,20 +45,13 @@ const DriverTripDetail = () => {
       } else {
         toast.error('❌ Tiket tidak ditemukan');
       }
+    };
+
+    try {
+      const parsed = JSON.parse(data);
+      validate(parsed.id);
     } catch {
-      const found = bookings.find(b => b.id === data.trim());
-      if (found && found.scheduleId === scheduleId) {
-        if (found.checkedIn) {
-          toast.warning(`⚠️ ${found.userName} sudah check-in sebelumnya`);
-        } else {
-          checkInPassenger(found.id);
-          toast.success(`✅ Check-in berhasil! ${found.userName} — Kursi #${found.seatNumber}`);
-        }
-      } else if (found) {
-        toast.error('❌ Tiket valid tapi bukan untuk perjalanan ini');
-      } else {
-        toast.error('❌ Tiket tidak ditemukan');
-      }
+      validate(data.trim());
     }
     setScanOpen(false);
     setScanInput('');
@@ -73,46 +68,23 @@ const DriverTripDetail = () => {
   const points = routePoints.filter(p => p.routeId === schedule?.routeId).sort((a, b) => a.order - b.order);
 
   if (!schedule || !route || !vehicle) return <div className="p-4">Data tidak ditemukan</div>;
-    try {
-      const parsed = JSON.parse(data);
-      const bookingId = parsed.id;
-      const found = bookings.find(b => b.id === bookingId);
 
-      if (found && found.scheduleId === scheduleId) {
-        if (found.checkedIn) {
-          toast.warning(`⚠️ ${found.userName} sudah check-in sebelumnya (Kursi #${found.seatNumber})`);
-        } else {
-          checkInPassenger(found.id);
-          toast.success(`✅ Check-in berhasil! ${found.userName} — Kursi #${found.seatNumber}`);
-        }
-      } else if (found) {
-        toast.error('❌ Tiket valid tapi bukan untuk perjalanan ini');
-      } else {
-        toast.error('❌ Tiket tidak ditemukan');
-      }
-    } catch {
-      // Not JSON — try as plain booking ID
-      const found = bookings.find(b => b.id === data.trim());
-      if (found && found.scheduleId === scheduleId) {
-        if (found.checkedIn) {
-          toast.warning(`⚠️ ${found.userName} sudah check-in sebelumnya`);
-        } else {
-          checkInPassenger(found.id);
-          toast.success(`✅ Check-in berhasil! ${found.userName} — Kursi #${found.seatNumber}`);
-        }
-      } else if (found) {
-        toast.error('❌ Tiket valid tapi bukan untuk perjalanan ini');
-      } else {
-        toast.error('❌ Tiket tidak ditemukan');
-      }
-    }
-    setScanOpen(false);
-    setScanInput('');
-  }, [bookings, scheduleId, checkInPassenger]);
+  const seats = generateSeats(vehicle.id);
+  const bookedSeats = passengers.map(p => p.seatNumber);
+  const availableSeats = seats.filter(s => !bookedSeats.includes(s.seatNumber));
+  const cols = vehicle.capacity <= 8 ? 2 : 3;
+  const canAddPassenger = schedule.status === 'boarding' || schedule.status === 'departed';
+  const checkedInCount = passengers.filter(p => p.checkedIn).length;
 
-  const handleScanSuccess = useCallback((decodedText: string) => {
-    processTicketData(decodedText);
-  }, [processTicketData]);
+  const handleStart = () => {
+    updateScheduleStatus(schedule.id, 'departed');
+    toast.success('Perjalanan dimulai!');
+  };
+
+  const handleFinish = () => {
+    updateScheduleStatus(schedule.id, 'arrived');
+    toast.success('Perjalanan selesai!');
+  };
 
   const handleManualScan = () => {
     if (!scanInput.trim()) return;
@@ -231,10 +203,7 @@ const DriverTripDetail = () => {
                     <Button
                       size="sm"
                       className="bg-green-500 hover:bg-green-600 text-white h-8 px-2"
-                      onClick={() => {
-                        acceptRideRequest(req.id);
-                        toast.success(`✅ ${req.userName} diterima!`);
-                      }}
+                      onClick={() => { acceptRideRequest(req.id); toast.success(`✅ ${req.userName} diterima!`); }}
                     >
                       <Check className="h-4 w-4" />
                     </Button>
@@ -242,10 +211,7 @@ const DriverTripDetail = () => {
                       size="sm"
                       variant="destructive"
                       className="h-8 px-2"
-                      onClick={() => {
-                        rejectRideRequest(req.id);
-                        toast.info(`❌ Request ${req.userName} ditolak`);
-                      }}
+                      onClick={() => { rejectRideRequest(req.id); toast.info(`❌ Request ${req.userName} ditolak`); }}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -316,7 +282,7 @@ const DriverTripDetail = () => {
               <div key={p.id} className="flex items-center gap-3 p-2 bg-muted rounded-lg">
                 <User className="h-5 w-5 text-primary" />
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-medium text-sm">{p.userName}</p>
                     <Badge
                       variant="outline"
@@ -354,20 +320,11 @@ const DriverTripDetail = () => {
             <DialogTitle className="flex items-center gap-2"><QrCode className="h-5 w-5" /> Scan QR Tiket</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Toggle camera/manual */}
             <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant={scanMode === 'camera' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setScanMode('camera')}
-              >
+              <Button variant={scanMode === 'camera' ? 'default' : 'outline'} size="sm" onClick={() => setScanMode('camera')}>
                 📷 Kamera
               </Button>
-              <Button
-                variant={scanMode === 'manual' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setScanMode('manual')}
-              >
+              <Button variant={scanMode === 'manual' ? 'default' : 'outline'} size="sm" onClick={() => setScanMode('manual')}>
                 ⌨️ Manual
               </Button>
             </div>
@@ -404,11 +361,7 @@ const DriverTripDetail = () => {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium mb-1 block">Nama Penumpang</label>
-              <Input
-                placeholder="Masukkan nama"
-                value={passengerName}
-                onChange={e => setPassengerName(e.target.value)}
-              />
+              <Input placeholder="Masukkan nama" value={passengerName} onChange={e => setPassengerName(e.target.value)} />
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">Titik Jemput</label>
@@ -416,9 +369,7 @@ const DriverTripDetail = () => {
                 <SelectTrigger><SelectValue placeholder="Pilih titik jemput" /></SelectTrigger>
                 <SelectContent>
                   {points.filter(p => p.distanceToDestination > 0).map(p => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.code} — {p.name} · {formatRupiah(p.price)}
-                    </SelectItem>
+                    <SelectItem key={p.id} value={p.id}>{p.code} — {p.name} · {formatRupiah(p.price)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -435,9 +386,7 @@ const DriverTripDetail = () => {
                 <SelectTrigger><SelectValue placeholder="Pilih kursi kosong" /></SelectTrigger>
                 <SelectContent>
                   {availableSeats.map(s => (
-                    <SelectItem key={s.seatNumber} value={String(s.seatNumber)}>
-                      Kursi #{s.seatNumber}
-                    </SelectItem>
+                    <SelectItem key={s.seatNumber} value={String(s.seatNumber)}>Kursi #{s.seatNumber}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -445,29 +394,11 @@ const DriverTripDetail = () => {
             <div>
               <label className="text-sm font-medium mb-1 block">Metode Bayar</label>
               <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant={paymentMethod === 'cash' ? 'default' : 'outline'}
-                  onClick={() => setPaymentMethod('cash')}
-                  className="w-full"
-                >
-                  💵 Cash
-                </Button>
-                <Button
-                  type="button"
-                  variant={paymentMethod === 'qris' ? 'default' : 'outline'}
-                  onClick={() => setPaymentMethod('qris')}
-                  className="w-full"
-                >
-                  📱 QRIS
-                </Button>
+                <Button type="button" variant={paymentMethod === 'cash' ? 'default' : 'outline'} onClick={() => setPaymentMethod('cash')} className="w-full">💵 Cash</Button>
+                <Button type="button" variant={paymentMethod === 'qris' ? 'default' : 'outline'} onClick={() => setPaymentMethod('qris')} className="w-full">📱 QRIS</Button>
               </div>
             </div>
-            <Button
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-              onClick={handleAddPassenger}
-              disabled={!passengerName.trim() || !selectedPickup || !selectedSeat}
-            >
+            <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white" onClick={handleAddPassenger} disabled={!passengerName.trim() || !selectedPickup || !selectedSeat}>
               Tambahkan Penumpang
             </Button>
           </div>
