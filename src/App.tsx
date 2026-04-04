@@ -83,7 +83,7 @@ const App = () => (
                 <Route index element={<AdminDashboard />} />
                 <Route path="routes" element={<AdminRoutes />} />
                 
-                <Route path="schedules" element={<AdminSchedules />} />
+                <Route path="drivers" element={<AdminDrivers />} />
                 <Route path="drivers" element={<AdminDrivers />} />
                 <Route path="vehicles" element={<AdminVehicles />} />
                 
