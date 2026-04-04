@@ -219,6 +219,19 @@ const AdminRoutes = () => {
     }));
   };
 
+  // --- Schedule CRUD ---
+  const handleSaveSchedule = () => {
+    setSchedules(prev => [...prev, { id: `s${Date.now()}`, ...scheduleForm, driverId: null, status: 'scheduled' as const }]);
+    toast.success('Jadwal ditambahkan');
+    setOpenSchedule(false);
+    setScheduleForm({ routeId: '', departureTime: '', vehicleId: '' });
+  };
+
+  const handleDeleteSchedule = (id: string) => {
+    setSchedules(prev => prev.filter(s => s.id !== id));
+    toast.success('Jadwal dihapus');
+  };
+
   return (
     <div className="space-y-4">
       <Tabs defaultValue="routes">
