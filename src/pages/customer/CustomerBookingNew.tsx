@@ -96,8 +96,8 @@ const CustomerBookingNew = () => {
           <Select value={selectedPickup} onValueChange={setSelectedPickup}>
             <SelectTrigger><SelectValue placeholder="Pilih titik jemput" /></SelectTrigger>
             <SelectContent>
-              {points.filter(p => p.order > 1).map(p => (
-                <SelectItem key={p.id} value={p.id}>{p.code} — {p.name} ({formatRupiah(p.price)})</SelectItem>
+              {points.filter(p => p.distanceToDestination > 0).map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.code} — {p.name} · {(p.distanceToDestination / 1000).toFixed(0)} km ke tujuan · {formatRupiah(p.price)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
