@@ -61,7 +61,7 @@ const CustomerBookingNew = () => {
       seatNumber: selectedSeat,
       price: bookingPrice,
       status: 'confirmed' as const,
-      bookingDate: new Date().toISOString().split('T')[0],
+      bookingDate: schedule.departureDate || new Date().toISOString().split('T')[0],
       departureTime: schedule.departureTime,
       paymentStatus: 'pending' as const,
       paymentMethod: null,
