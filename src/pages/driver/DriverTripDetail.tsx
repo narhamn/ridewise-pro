@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 const DriverTripDetail = () => {
   const { scheduleId } = useParams();
   const navigate = useNavigate();
-  const { schedules, routes, routePoints, vehicles, bookings, addBooking, updateScheduleStatus } = useShuttle();
+  const { schedules, routes, routePoints, vehicles, bookings, addBooking, updateScheduleStatus, rideRequests, acceptRideRequest, rejectRideRequest } = useShuttle();
   const [scanOpen, setScanOpen] = useState(false);
   const [scanInput, setScanInput] = useState('');
   const [addPassengerOpen, setAddPassengerOpen] = useState(false);
