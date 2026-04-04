@@ -13,8 +13,7 @@ const menuItems = [
   
   { title: 'Jadwal', url: '/admin/schedules', icon: CalendarDays },
   { title: 'Driver', url: '/admin/drivers', icon: Users },
-  { title: 'Kendaraan', url: '/admin/vehicles', icon: Bus },
-  { title: 'Assign Driver', url: '/admin/assign', icon: Link2 },
+  { title: 'Kendaraan & Driver', url: '/admin/vehicles', icon: Bus },
   { title: 'Booking', url: '/admin/bookings', icon: BookOpen },
   { title: 'Laporan', url: '/admin/reports', icon: FileText },
   { title: 'Payment', url: '/admin/payment-settings', icon: CreditCard },

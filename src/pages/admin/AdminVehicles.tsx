@@ -7,12 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Vehicle } from '@/types/shuttle';
 
 const AdminVehicles = () => {
-  const { vehicles, setVehicles } = useShuttle();
+  const { vehicles, setVehicles, schedules, setSchedules, routes, drivers } = useShuttle();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Vehicle | null>(null);
   const [form, setForm] = useState({ name: '', plateNumber: '', capacity: 8, type: 'MPV' });
@@ -33,60 +35,120 @@ const AdminVehicles = () => {
 
   const handleDelete = (id: string) => { setVehicles(prev => prev.filter(v => v.id !== id)); toast.success('Dihapus'); };
 
+  const handleAssign = (scheduleId: string, driverId: string) => {
+    setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, driverId: driverId || null } : s));
+    toast.success('Driver di-assign');
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Kelola Kendaraan</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button onClick={openNew}><Plus className="h-4 w-4 mr-1" />Tambah</Button></DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>{editing ? 'Edit Kendaraan' : 'Tambah Kendaraan'}</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div><Label>Nama</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
-              <div><Label>Plat Nomor</Label><Input value={form.plateNumber} onChange={e => setForm({...form, plateNumber: e.target.value})} /></div>
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label>Kapasitas</Label><Input type="number" value={form.capacity} onChange={e => setForm({...form, capacity: Number(e.target.value)})} /></div>
-                <div><Label>Tipe</Label><Input value={form.type} onChange={e => setForm({...form, type: e.target.value})} /></div>
-              </div>
-              <Button className="w-full" onClick={handleSave}>Simpan</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+      <h1 className="text-2xl font-bold">Kendaraan & Assign Driver</h1>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nama</TableHead>
-                <TableHead>Plat</TableHead>
-                <TableHead>Kapasitas</TableHead>
-                <TableHead>Tipe</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {vehicles.map(v => (
-                <TableRow key={v.id}>
-                  <TableCell className="font-medium">{v.name}</TableCell>
-                  <TableCell className="font-mono">{v.plateNumber}</TableCell>
-                  <TableCell>{v.capacity} kursi</TableCell>
-                  <TableCell>{v.type}</TableCell>
-                  <TableCell><Badge variant={v.status === 'active' ? 'default' : 'secondary'}>{v.status}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(v.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="vehicles">
+        <TabsList>
+          <TabsTrigger value="vehicles">Kendaraan</TabsTrigger>
+          <TabsTrigger value="assign">Assign Driver</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="vehicles">
+          <div className="flex justify-end mb-4">
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild><Button onClick={openNew}><Plus className="h-4 w-4 mr-1" />Tambah</Button></DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>{editing ? 'Edit Kendaraan' : 'Tambah Kendaraan'}</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div><Label>Nama</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
+                  <div><Label>Plat Nomor</Label><Input value={form.plateNumber} onChange={e => setForm({...form, plateNumber: e.target.value})} /></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div><Label>Kapasitas</Label><Input type="number" value={form.capacity} onChange={e => setForm({...form, capacity: Number(e.target.value)})} /></div>
+                    <div><Label>Tipe</Label><Input value={form.type} onChange={e => setForm({...form, type: e.target.value})} /></div>
+                  </div>
+                  <Button className="w-full" onClick={handleSave}>Simpan</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Plat</TableHead>
+                    <TableHead>Kapasitas</TableHead>
+                    <TableHead>Tipe</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {vehicles.map(v => (
+                    <TableRow key={v.id}>
+                      <TableCell className="font-medium">{v.name}</TableCell>
+                      <TableCell className="font-mono">{v.plateNumber}</TableCell>
+                      <TableCell>{v.capacity} kursi</TableCell>
+                      <TableCell>{v.type}</TableCell>
+                      <TableCell><Badge variant={v.status === 'active' ? 'default' : 'secondary'}>{v.status}</Badge></TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(v.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="assign">
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Rute</TableHead>
+                    <TableHead>Waktu</TableHead>
+                    <TableHead>Kendaraan</TableHead>
+                    <TableHead>Driver</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {schedules.map(s => {
+                    const route = routes.find(r => r.id === s.routeId);
+                    const vehicle = vehicles.find(v => v.id === s.vehicleId);
+                    return (
+                      <TableRow key={s.id}>
+                        <TableCell>{route?.name}</TableCell>
+                        <TableCell className="font-mono">{s.departureTime}</TableCell>
+                        <TableCell>{vehicle?.name}</TableCell>
+                        <TableCell>
+                          <Select value={s.driverId || ''} onValueChange={v => handleAssign(s.id, v)}>
+                            <SelectTrigger className="w-48"><SelectValue placeholder="Pilih driver" /></SelectTrigger>
+                            <SelectContent>
+                              {drivers.filter(d => d.status === 'active').map(d => (
+                                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={s.driverId ? 'default' : 'destructive'}>
+                            {s.driverId ? 'Assigned' : 'Unassigned'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

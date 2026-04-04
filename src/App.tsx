@@ -35,7 +35,7 @@ import AdminRoutes from "./pages/admin/AdminRoutes";
 import AdminSchedules from "./pages/admin/AdminSchedules";
 import AdminDrivers from "./pages/admin/AdminDrivers";
 import AdminVehicles from "./pages/admin/AdminVehicles";
-import AdminAssign from "./pages/admin/AdminAssign";
+
 import AdminBookings from "./pages/admin/AdminBookings";
 import AdminReports from "./pages/admin/AdminReports";
 import AdminTracking from "./pages/admin/AdminTracking";
