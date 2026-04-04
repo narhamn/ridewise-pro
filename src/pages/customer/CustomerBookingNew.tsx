@@ -85,7 +85,7 @@ const CustomerBookingNew = () => {
           <p><span className="text-muted-foreground">Rute:</span> {route.name}</p>
           <p><span className="text-muted-foreground">Waktu:</span> {schedule.departureTime}</p>
           <p><span className="text-muted-foreground">Kendaraan:</span> {vehicle.name} ({vehicle.plateNumber})</p>
-          <p><span className="text-muted-foreground">Harga:</span> <span className="font-bold text-primary">{formatRupiah(route.price)}</span></p>
+          <p><span className="text-muted-foreground">Harga mulai:</span> <span className="font-bold text-primary">{formatRupiah(points.length > 1 ? points[1]?.price || 0 : route.price)} — {formatRupiah(route.price)}</span></p>
         </CardContent>
       </Card>
 
