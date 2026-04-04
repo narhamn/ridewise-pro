@@ -242,13 +242,13 @@ const SuperAdminDashboard = () => {
                   </div>
                   <div className="flex-1">
                     <div className="flex justify-between">
-                      <p className="text-sm font-bold">{log.action || 'Unknown Action'}</p>
+                      <p className="text-sm font-bold">{(log as any).action || log.reason || 'Price Change'}</p>
                       <span className="text-[10px] text-muted-foreground">
-                        {log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : 'N/A'}
+                        {log.changeDate ? new Date(log.changeDate).toLocaleTimeString() : 'N/A'}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      <span className="font-medium text-slate-900">{log.userName || 'System'}</span>: {log.details || 'No details available'}
+                      <span className="font-medium text-slate-900">{log.changedBy || 'System'}</span>: {log.reason || 'No details available'}
                     </p>
                   </div>
                 </div>

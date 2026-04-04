@@ -15,6 +15,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { formatPrice } from '@/lib/pricing';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { TRIP_STATUS_CONFIG, DRIVER_TYPOGRAPHY, DRIVER_LAYOUT } from '@/lib/driver-ui';
 
