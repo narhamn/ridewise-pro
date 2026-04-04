@@ -96,8 +96,8 @@ const CustomerBookingNew = () => {
           <Select value={selectedPickup} onValueChange={setSelectedPickup}>
             <SelectTrigger><SelectValue placeholder="Pilih titik jemput" /></SelectTrigger>
             <SelectContent>
-              {points.map(p => (
-                <SelectItem key={p.id} value={p.id}>{p.code} — {p.name}</SelectItem>
+              {points.filter(p => p.order > 1).map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.code} — {p.name} ({formatRupiah(p.price)})</SelectItem>
               ))}
             </SelectContent>
           </Select>
