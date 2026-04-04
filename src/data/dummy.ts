@@ -24,8 +24,8 @@ export const dummyRegistrations: DriverRegistration[] = [
     submittedAt: '2024-04-03T14:20:00Z',
     updatedAt: '2024-04-03T14:20:00Z',
     documents: [
-      { id: 'd-1', type: 'KTP', status: 'pending', fileUrl: 'ktp-rizky.jpg', ocrData: { name: 'RIZKY RAMADHAN', nik: '1201010101010001' }, manipulationScore: 0.05 },
-      { id: 'd-2', type: 'SIM', status: 'pending', fileUrl: 'sim-rizky.jpg', ocrData: { type: 'SIM A', expiry: '2028-12-31' }, manipulationScore: 0.02 },
+      { id: 'd-1', type: 'KTP', status: 'pending', fileUrl: 'ktp-rizky.jpg', ocrData: { extractedText: 'RIZKY RAMADHAN', confidence: 0.95, fields: { name: 'RIZKY RAMADHAN', nik: '1201010101010001' } }, manipulationScore: 0.05 },
+      { id: 'd-2', type: 'SIM', status: 'pending', fileUrl: 'sim-rizky.jpg', ocrData: { extractedText: 'SIM A', confidence: 0.92, fields: { type: 'SIM A', expiry: '2028-12-31' } }, manipulationScore: 0.02 },
       { id: 'd-3', type: 'STNK', status: 'pending', fileUrl: 'stnk-rizky.jpg', manipulationScore: 0.08 },
       { id: 'd-4', type: 'FOTO_DIRI', status: 'pending', fileUrl: 'selfie-rizky.jpg', manipulationScore: 0.01 }
     ],

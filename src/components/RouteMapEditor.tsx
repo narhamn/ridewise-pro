@@ -453,8 +453,8 @@ const RouteMapEditor = ({
     }).setView([3.5952, 98.6722], 12);
 
     // Add tile layer
-    L.tileLayer(OSM_TILE_URL, {
-      attribution: OSM_ATTRIBUTION,
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
       maxZoom: 19
     }).addTo(map);
 
