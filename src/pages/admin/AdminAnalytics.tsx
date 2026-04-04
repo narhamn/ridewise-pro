@@ -1,7 +1,7 @@
 import { useShuttle } from '@/contexts/ShuttleContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatRupiah } from '@/data/dummy';
-import { TrendingUp, Users, Bus, DollarSign } from 'lucide-react';
+import { formatPrice } from '@/lib/pricing';
+import { TrendingUp, Users, Bus, DollarSign, MapPin, ArrowUpRight, ArrowDownRight, Activity } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, Legend } from 'recharts';
 
 const COLORS = ['hsl(221,83%,53%)', 'hsl(160,84%,39%)', 'hsl(38,92%,50%)', 'hsl(0,84%,60%)'];
@@ -62,7 +62,7 @@ const AdminAnalytics = () => {
             <div className="p-3 rounded-lg bg-primary/10"><DollarSign className="h-6 w-6 text-primary" /></div>
             <div>
               <p className="text-xs text-muted-foreground">Total Revenue</p>
-              <p className="text-lg font-bold">{formatRupiah(totalRevenue)}</p>
+              <p className="text-lg font-bold">{formatPrice(totalRevenue)}</p>
             </div>
           </CardContent>
         </Card>
@@ -106,7 +106,7 @@ const AdminAnalytics = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: number) => formatRupiah(v)} />
+                <Tooltip formatter={(v: number) => formatPrice(v)} />
                 <Bar dataKey="revenue" fill="hsl(221,83%,53%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

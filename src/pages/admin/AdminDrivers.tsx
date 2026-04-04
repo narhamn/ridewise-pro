@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -44,7 +44,12 @@ const AdminDrivers = () => {
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button onClick={openNew}><Plus className="h-4 w-4 mr-1" />Tambah</Button></DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>{editing ? 'Edit Driver' : 'Tambah Driver'}</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>{editing ? 'Edit Driver' : 'Tambah Driver'}</DialogTitle>
+              <DialogDescription>
+                Masukkan data diri dan nomor lisensi pengemudi secara lengkap.
+              </DialogDescription>
+            </DialogHeader>
             <div className="space-y-3">
               <div><Label>Nama</Label><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
               <div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} /></div>

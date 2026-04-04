@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { formatRupiah } from '@/data/dummy';
+import { formatPrice } from '@/lib/pricing';
 import { PaymentMethod } from '@/types/shuttle';
 import { CreditCard, Wallet, QrCode, CheckCircle, Loader2 } from 'lucide-react';
 
@@ -67,13 +67,18 @@ export const PaymentModal = ({ open, onClose, amount, onConfirm }: PaymentModalP
             {step === 'processing' && 'Memproses Pembayaran'}
             {step === 'success' && 'Pembayaran Berhasil'}
           </DialogTitle>
+          <DialogDescription>
+            {step === 'select' && 'Silakan pilih metode pembayaran yang tersedia untuk melanjutkan.'}
+            {step === 'processing' && 'Jangan tutup halaman ini hingga pembayaran selesai diproses.'}
+            {step === 'success' && 'Terima kasih, pembayaran Anda telah kami terima.'}
+          </DialogDescription>
         </DialogHeader>
 
         {step === 'select' && (
           <div className="space-y-3">
-            <div className="text-center py-2">
-              <p className="text-sm text-muted-foreground">Total Pembayaran</p>
-              <p className="text-2xl font-bold text-primary">{formatRupiah(amount)}</p>
+            <div className="bg-primary/5 rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground mb-1">Total Pembayaran</p>
+              <p className="text-2xl font-bold text-primary">{formatPrice(amount)}</p>
             </div>
             {methods.map(m => (
               <Card
@@ -110,7 +115,7 @@ export const PaymentModal = ({ open, onClose, amount, onConfirm }: PaymentModalP
           <div className="text-center py-8 space-y-4">
             <CheckCircle className="h-16 w-16 text-success mx-auto" />
             <p className="font-bold text-lg">Pembayaran Berhasil!</p>
-            <p className="text-sm text-muted-foreground">{formatRupiah(amount)} via {methods.find(m => m.id === selected)?.label}</p>
+            <p className="text-sm text-muted-foreground">{formatPrice(amount)} via {methods.find(m => m.id === selected)?.label}</p>
             <Button className="w-full" size="lg" onClick={handleDone}>Lihat Tiket</Button>
           </div>
         )}

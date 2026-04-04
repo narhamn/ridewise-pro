@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, MapPin, Navigation, Users, Bus, BookOpen, FileText, LogOut, Map, BarChart3, CreditCard, Zap } from 'lucide-react';
+import { LayoutDashboard, MapPin, Navigation, Users, Bus, BookOpen, FileText, LogOut, Map, BarChart3, CreditCard } from 'lucide-react';
 import { useShuttle } from '@/contexts/ShuttleContext';
 import { NotificationCenter } from '@/components/NotificationCenter';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from '@/components/ui/sidebar';
@@ -10,11 +10,8 @@ const menuItems = [
   { title: 'Analytics', url: '/admin/analytics', icon: BarChart3 },
   { title: 'Tracking', url: '/admin/tracking', icon: Map },
   { title: 'Rute & Jadwal', url: '/admin/routes', icon: Navigation },
-  { title: 'Manajemen Rute', url: '/admin/route-management', icon: Navigation },
-  { title: 'Titik Jemput', url: '/admin/pickup-points', icon: MapPin },
-  { title: 'Rayon', url: '/admin/rayons', icon: Zap },
-  { title: 'Driver', url: '/admin/drivers', icon: Users },
-  { title: 'Kendaraan', url: '/admin/vehicles', icon: Bus },
+  { title: 'Manajemen Driver', url: '/admin/drivers', icon: Users },
+  { title: 'Kendaraan & Driver', url: '/admin/vehicles', icon: Bus },
   { title: 'Booking', url: '/admin/bookings', icon: BookOpen },
   { title: 'Laporan', url: '/admin/reports', icon: FileText },
   { title: 'Payment', url: '/admin/payment-settings', icon: CreditCard },

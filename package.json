@@ -1,5 +1,5 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "pyu-go",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -51,7 +51,6 @@
     "html5-qrcode": "^2.3.8",
     "input-otp": "^1.4.2",
     "leaflet": "^1.9.4",
-    "leaflet-routing-machine": "^3.2.12",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "qrcode.react": "^4.2.0",
@@ -59,7 +58,7 @@
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.61.1",
-    "react-leaflet": "^5.0.0",
+    "react-leaflet": "^4.2.1",
     "react-resizable-panels": "^2.1.9",
     "react-router-dom": "^6.30.1",
     "recharts": "^2.15.4",

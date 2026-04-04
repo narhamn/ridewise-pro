@@ -1,43 +1,187 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useShuttle } from '@/contexts/ShuttleContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Eye, EyeOff, Loader2, Mail, Lock, Truck, Sparkles, ArrowRight } from 'lucide-react';
+import { toast } from 'sonner';
 
 const DriverLogin = () => {
-  const [email, setEmail] = useState('budi@shuttle.com');
-  const [password, setPassword] = useState('password');
+  const [formData, setFormData] = useState({
+    email: 'budi@shuttle.com',
+    password: 'password'
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login } = useShuttle();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (error) setError('');
+  };
+
+  const validateForm = () => {
+    if (!formData.email.trim()) {
+      setError('Email wajib diisi');
+      return false;
+    }
+    if (!formData.password.trim()) {
+      setError('Password wajib diisi');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    login(email, password, 'driver');
-    navigate('/driver');
+    setError('');
+
+    if (!validateForm()) return;
+
+    setIsLoading(true);
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      login(formData.email, formData.password, 'driver');
+      toast.success('Login berhasil! Selamat datang kembali.');
+      navigate('/driver');
+    } catch (err) {
+      setError('Email atau password salah. Silakan coba lagi.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="text-4xl mb-2">🚛</div>
-          <CardTitle>Login Driver</CardTitle>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute top-20 right-10 animate-bounce delay-1000">
+          <Sparkles className="h-8 w-8 text-green-400" />
+        </div>
+        <div className="absolute bottom-20 left-10 animate-bounce delay-2000">
+          <Truck className="h-6 w-6 text-green-500" />
+        </div>
+      </div>
+
+      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <CardHeader className="text-center pb-2">
+          <div className="relative mb-4">
+            <div className="text-5xl animate-pulse">🚛</div>
+            <div className="absolute -top-1 -right-1 animate-spin">
+              <Sparkles className="h-6 w-6 text-green-500" />
+            </div>
+          </div>
+          <CardTitle className="text-2xl font-bold text-slate-900 dark:text-white">
+            Driver Portal
+          </CardTitle>
+          <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">
+            Masuk ke dashboard driver Anda
+          </p>
         </CardHeader>
-        <CardContent>
+
+        <CardContent className="space-y-4">
+          {error && (
+            <Alert variant="destructive" className="animate-in slide-in-from-top-2 duration-300">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} />
+              <Label htmlFor="email" className="text-slate-700 dark:text-slate-300 font-medium">
+                Email Driver
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Masukkan email driver"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  className="pl-10 border-slate-200 dark:border-slate-600 focus:border-green-500 focus:ring-green-500"
+                  disabled={isLoading}
+                  required
+                />
+              </div>
             </div>
+
             <div className="space-y-2">
-              <Label>Password</Label>
-              <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
+              <Label htmlFor="password" className="text-slate-700 dark:text-slate-300 font-medium">
+                Password
+              </Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Masukkan password"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  className="pl-10 pr-10 border-slate-200 dark:border-slate-600 focus:border-green-500 focus:ring-green-500"
+                  disabled={isLoading}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  disabled={isLoading}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
-            <Button type="submit" className="w-full">Masuk sebagai Driver</Button>
-            <Link to="/" className="block text-center text-sm text-muted-foreground hover:text-primary">← Kembali</Link>
+
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Masuk...
+                </>
+              ) : (
+                <>
+                  Masuk sebagai Driver
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
           </form>
+
+          <div className="text-center space-y-3 pt-2">
+            <div className="border-t border-slate-200 dark:border-slate-600 pt-4">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                Belum menjadi mitra driver?
+              </p>
+              <Button
+                variant="outline"
+                className="w-full border-green-200 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-400 dark:hover:bg-green-900/20 rounded-xl font-semibold uppercase tracking-widest text-xs py-3 transition-all duration-300 hover:shadow-md"
+                onClick={() => navigate('/driver/register')}
+                disabled={isLoading}
+              >
+                Daftar Menjadi Driver
+                <Truck className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+
+            <Link
+              to="/"
+              className="inline-flex items-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-sm transition-colors"
+            >
+              ← Kembali ke Beranda
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

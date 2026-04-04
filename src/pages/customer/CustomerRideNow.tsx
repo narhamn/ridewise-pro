@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, MapPin, Clock, Users, Loader2, CheckCircle2, XCircle } from 'lucide-react';
-import { generateSeats, formatRupiah } from '@/data/dummy';
+import { generateSeats } from '@/data/dummy';
+import { formatPrice } from '@/lib/pricing';
 import { toast } from 'sonner';
 
 const CustomerRideNow = () => {
@@ -106,7 +107,7 @@ const CustomerRideNow = () => {
                   <p className="text-sm"><strong>Rute:</strong> {selectedInfo?.route?.name}</p>
                   <p className="text-sm"><strong>Titik Jemput:</strong> {currentRequest.pickupPointName}</p>
                   <p className="text-sm"><strong>Kursi:</strong> #{currentRequest.seatNumber}</p>
-                  <p className="text-sm"><strong>Harga:</strong> {formatRupiah(currentRequest.price)}</p>
+                  <p className="text-sm"><strong>Harga:</strong> {formatPrice(currentRequest.price)}</p>
                 </div>
               </>
             )}
@@ -202,7 +203,7 @@ const CustomerRideNow = () => {
                 <SelectContent>
                   {points.filter(p => p.distanceToDestination > 0).map(p => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.code} — {p.name} · {formatRupiah(p.price)}
+                      {p.code} — {p.name} · {formatPrice(p.price)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -212,7 +213,7 @@ const CustomerRideNow = () => {
             {selectedPickup && (
               <div className="bg-muted rounded-lg p-3 text-center">
                 <p className="text-xs text-muted-foreground">Harga</p>
-                <p className="text-xl font-bold text-primary">{formatRupiah(points.find(p => p.id === selectedPickup)?.price || 0)}</p>
+                <p className="text-xl font-bold text-primary">{formatPrice(points.find(p => p.id === selectedPickup)?.price || 0)}</p>
               </div>
             )}
 

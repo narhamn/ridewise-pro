@@ -4,6 +4,84 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom Leaflet marker styles */
+.custom-driver-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-driver-marker .marker-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid white;
+  transition: all 0.2s ease;
+}
+
+.custom-driver-marker .marker-container:hover {
+  transform: scale(1.1);
+}
+
+.custom-driver-marker .status-indicator {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.custom-driver-marker .moving-indicator {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.custom-driver-marker .pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Modern popup styles */
+.modern-popup .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  border: none;
+  overflow: hidden;
+}
+
+.modern-popup .leaflet-popup-content {
+  margin: 0;
+  font-family: inherit;
+}
+
+.modern-popup .leaflet-popup-tip {
+  background: white;
+}
+
 @layer base {
   :root {
     --background: 210 20% 98%;
@@ -88,5 +166,24 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
+  }
+}
+
+@layer utilities {
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 }

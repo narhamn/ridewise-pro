@@ -1,42 +1,16 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import {
-  User,
-  UserRole,
-  Booking,
-  Schedule,
-  Route,
-  RoutePoint,
-  Driver,
-  Vehicle,
-  RayonPricing,
-  RideRequest,
-  PickupPoint,
-  Rayon,
-  RouteSequence,
-  ActivityLog,
-} from '@/types/shuttle';
-import {
-  dummyRoutes,
-  dummyRoutePoints,
-  dummySchedules,
-  dummyDrivers,
-  dummyVehicles,
-  dummyBookings,
-  defaultRayonPricing,
-  dummyPickupPoints,
-  dummyRayons,
-  dummyRouteSequences,
-  dummyActivityLogs,
-  generateNewActivityLog,
-} from '@/data/dummy';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { User, UserRole, Booking, Schedule, Route, RoutePoint, Driver, Vehicle, RayonPricing, RideRequest, Discount, TaxConfig, PricingAuditLog, DriverLocation, TrackingLog, Ticket, TicketStatus, TicketComment, DriverRegistration, VerificationStatus, VerificationLog } from '@/types/shuttle';
+import { dummyRoutes, dummyRoutePoints, dummySchedules, dummyDrivers, dummyVehicles, dummyBookings, defaultRayonPricing, dummyDiscounts, defaultTaxConfigs, dummyTickets, dummyRegistrations } from '@/data/dummy';
+import { calculateHaversineDistance, isValidRouteData } from '@/lib/utils';
+import { calculateFinalPrice } from '@/lib/pricing';
+import { processBookingOnServer, BookingRequest, BookingResponse } from '@/services/bookingServer';
+import { useNotifications } from './NotificationContext';
+import { toast } from 'sonner';
 
 interface ShuttleContextType {
-  // Auth
   currentUser: User | null;
   login: (email: string, password: string, role: UserRole) => boolean;
   logout: () => void;
-
-  // Original data
   routes: Route[];
   routePoints: RoutePoint[];
   schedules: Schedule[];
@@ -45,45 +19,26 @@ interface ShuttleContextType {
   bookings: Booking[];
   rayonPricing: RayonPricing[];
   rideRequests: RideRequest[];
-
-  // Pickup Point Management
-  pickupPoints: PickupPoint[];
-  addPickupPoint: (pickupPoint: Omit<PickupPoint, 'id' | 'createdAt' | 'updatedAt'>) => PickupPoint;
-  updatePickupPoint: (id: string, updates: Partial<PickupPoint>) => void;
-  deletePickupPoint: (id: string) => void;
-  getPickupPointsByRayon: (rayon: Rayon['code']) => PickupPoint[];
-  getPickupPointById: (id: string) => PickupPoint | undefined;
-  searchPickupPoints: (query: string) => PickupPoint[];
-  togglePickupPointStatus: (id: string) => void;
-
-  // Rayon Management
-  rayons: Rayon[];
-  updateRayonInfo: (rayonCode: Rayon['code'], updates: Partial<Rayon>) => void;
-  getRayonByCode: (code: Rayon['code']) => Rayon | undefined;
-  getRayonPickupPointCount: (code: Rayon['code']) => number;
-
-  // Route Sequences
-  routeSequences: RouteSequence[];
-  addRouteSequence: (sequence: Omit<RouteSequence, 'id'>) => void;
-  updateRouteSequence: (id: string, updates: Partial<RouteSequence>) => void;
-  deleteRouteSequence: (id: string) => void;
-  getRouteSequences: (routeId: string) => RouteSequence[];
-  reorderRouteSequence: (routeId: string, sequences: RouteSequence[]) => void;
-
-  // Activity Logging
-  activityLogs: ActivityLog[];
-  getActivityLogs: (entityType?: ActivityLog['entityType']) => ActivityLog[];
-  getActivityLogsByEntity: (entityId: string) => ActivityLog[];
-
-  // Original operations
+  discounts: Discount[];
+  taxConfigs: TaxConfig[];
+  auditLogs: PricingAuditLog[];
+  driverLocations: Record<string, DriverLocation>;
+  trackingLogs: TrackingLog[];
+  tickets: Ticket[];
+  registrations: DriverRegistration[];
+  updateDriverLocation: (driverId: string, location: DriverLocation) => void;
+  addAuditLog: (log: Omit<PricingAuditLog, 'id' | 'changeDate'>) => void;
+  createSecureBooking: (request: BookingRequest) => BookingResponse;
   addBooking: (booking: Booking) => void;
   updateScheduleStatus: (scheduleId: string, status: Schedule['status']) => void;
   addRideRequest: (request: RideRequest) => void;
   acceptRideRequest: (requestId: string) => void;
   rejectRideRequest: (requestId: string) => void;
   checkInPassenger: (bookingId: string) => void;
-
-  // Setters
+  updateTicketStatus: (ticketId: string, status: TicketStatus, note?: string) => void;
+  addTicketComment: (ticketId: string, message: string, attachments?: string[]) => void;
+  submitDriverRegistration: (registration: Omit<Driver, 'id' | 'verificationStatus' | 'submittedAt' | 'updatedAt' | 'logs' | 'status' | 'rating' | 'totalTrips' | 'joinDate'>) => void;
+  updateRegistrationStatus: (registrationId: string, status: VerificationStatus, reason?: string) => void;
   setRoutes: React.Dispatch<React.SetStateAction<Route[]>>;
   setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
   setSchedules: React.Dispatch<React.SetStateAction<Schedule[]>>;
@@ -91,40 +46,98 @@ interface ShuttleContextType {
   setVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
   setBookings: React.Dispatch<React.SetStateAction<Booking[]>>;
   setRayonPricing: React.Dispatch<React.SetStateAction<RayonPricing[]>>;
-  setPickupPoints: React.Dispatch<React.SetStateAction<PickupPoint[]>>;
-  setRayons: React.Dispatch<React.SetStateAction<Rayon[]>>;
-  setActivityLogs: React.Dispatch<React.SetStateAction<ActivityLog[]>>;
-
-  recalcRoutePointPrices: (routeId: string, pricePerMeter: number) => void;
+  setDiscounts: React.Dispatch<React.SetStateAction<Discount[]>>;
+  setTaxConfigs: React.Dispatch<React.SetStateAction<TaxConfig[]>>;
+  updateDriverStatus: (driverId: string, status: 'online' | 'offline') => Promise<boolean>;
+  assignDriverToSchedule: (scheduleId: string, driverId: string) => void;
+  removeDriverFromSchedule: (scheduleId: string) => void;
+  updateTripStatus: (scheduleId: string, status: Schedule['status'], notes?: string) => void;
+  notifyBookingCreated: (booking: Booking) => void;
+  notifyTripUpdate: (scheduleId: string, status: Schedule['status']) => void;
+  getAvailableDrivers: (date: string, timeSlot?: string) => Driver[];
+  getDriverSchedule: (driverId: string, date?: string) => Schedule[];
 }
 
 const ShuttleContext = createContext<ShuttleContextType | undefined>(undefined);
 
 export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
+  const { addNotification } = useNotifications();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [routes, setRoutes] = useState<Route[]>(dummyRoutes);
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>(dummyRoutePoints);
   const [schedules, setSchedules] = useState<Schedule[]>(dummySchedules);
-  const [drivers, setDrivers] = useState<Driver[]>(dummyDrivers);
+  const [drivers, setDrivers] = useState<Driver[]>(() => {
+    const saved = localStorage.getItem('shuttle_drivers');
+    const loadedDrivers = saved ? JSON.parse(saved) : [...dummyDrivers, ...dummyRegistrations];
+    return loadedDrivers;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('shuttle_drivers', JSON.stringify(drivers));
+  }, [drivers]);
+
+  // Derived state for backward compatibility
+  const registrations = drivers.filter(d => d.verificationStatus !== 'approved');
+  
   const [vehicles, setVehicles] = useState<Vehicle[]>(dummyVehicles);
   const [bookings, setBookings] = useState<Booking[]>(dummyBookings);
   const [rayonPricing, setRayonPricing] = useState<RayonPricing[]>(defaultRayonPricing);
   const [rideRequests, setRideRequests] = useState<RideRequest[]>([]);
-  const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>(dummyPickupPoints);
-  const [rayons, setRayons] = useState<Rayon[]>(dummyRayons);
-  const [routeSequences, setRouteSequences] = useState<RouteSequence[]>(dummyRouteSequences);
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(dummyActivityLogs);
+  const [discounts, setDiscounts] = useState<Discount[]>(dummyDiscounts);
+  const [taxConfigs, setTaxConfigs] = useState<TaxConfig[]>(defaultTaxConfigs);
+  const [auditLogs, setAuditLogs] = useState<PricingAuditLog[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>(dummyTickets);
+  // Removed separate registrations state
 
-  // Auth
+  
+  // Real-time tracking states
+  const [driverLocations, setDriverLocations] = useState<Record<string, DriverLocation>>({});
+  const [trackingLogs, setTrackingLogs] = useState<TrackingLog[]>([]);
+
+  const updateDriverLocation = useCallback((driverId: string, location: DriverLocation) => {
+    setDriverLocations(prev => ({
+      ...prev,
+      [driverId]: location
+    }));
+
+    // Record to tracking log
+    const newLog: TrackingLog = {
+      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      entityId: driverId,
+      entityType: 'driver',
+      latitude: location.latitude,
+      longitude: location.longitude,
+      speed: location.speed,
+      timestamp: location.timestamp
+    };
+
+    setTrackingLogs(prev => {
+      const updated = [newLog, ...prev];
+      // Keep only last 1000 logs for performance
+      return updated.slice(0, 1000);
+    });
+  }, []);
+
+  const addAuditLog = (log: Omit<PricingAuditLog, 'id' | 'changeDate'>) => {
+    const newLog: PricingAuditLog = {
+      ...log,
+      id: `audit-${Date.now()}`,
+      changeDate: new Date().toISOString(),
+    };
+    setAuditLogs(prev => [newLog, ...prev]);
+    // Simulated backup: in a real app, this would be a persistent store or external API
+    console.log("Audit log backed up:", newLog);
+  };
+
   const login = (email: string, _password: string, role: UserRole): boolean => {
     if (role === 'customer') {
       setCurrentUser({ id: 'u1', name: 'Siti Aminah', email, phone: '081200000001', role: 'customer' });
     } else if (role === 'driver') {
-      const driver = drivers.find(d => d.email === email);
+      const driver = drivers.find(d => d.phoneNumber === email || d.name.toLowerCase().includes(email.toLowerCase()));
       if (driver) {
-        setCurrentUser({ id: driver.id, name: driver.name, email: driver.email, phone: driver.phone, role: 'driver' });
+        setCurrentUser({ id: driver.id, name: driver.name, email: `${driver.id}@ridewise.com`, phone: driver.phoneNumber, role: 'driver' });
       } else {
-        setCurrentUser({ id: 'd1', name: 'Budi Santoso', email, phone: '081234567890', role: 'driver' });
+        setCurrentUser({ id: 'd1', name: 'Budi Santoso', email: 'budi@ridewise.com', phone: '081234567890', role: 'driver' });
       }
     } else {
       setCurrentUser({ id: 'admin1', name: 'Administrator', email, phone: '081200000000', role: 'admin' });
@@ -134,263 +147,31 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => setCurrentUser(null);
 
-  // ========== Pickup Point Management ==========
-
-  const addPickupPoint = (pickupPoint: Omit<PickupPoint, 'id' | 'createdAt' | 'updatedAt'>): PickupPoint => {
-    const newPickupPoint: PickupPoint = {
-      ...pickupPoint,
-      id: `pk${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setPickupPoints(prev => [...prev, newPickupPoint]);
-
-    // Log activity
-    const log = generateNewActivityLog(
-      'pickup_point',
-      newPickupPoint.id,
-      newPickupPoint.name,
-      'create',
-      { name: { oldValue: null, newValue: newPickupPoint.name }, rayon: { oldValue: null, newValue: newPickupPoint.rayon } },
-      currentUser?.id || 'system',
-      currentUser?.name || 'System',
-      `Pickup point "${newPickupPoint.name}" created successfully`
-    );
-    setActivityLogs(prev => [log, ...prev]);
-
-    return newPickupPoint;
+  const addBooking = (booking: Booking) => {
+    setBookings(prev => [...prev, booking]);
+    notifyBookingCreated(booking);
   };
 
-  const updatePickupPoint = (id: string, updates: Partial<PickupPoint>) => {
-    const oldPickupPoint = pickupPoints.find(p => p.id === id);
-    if (!oldPickupPoint) return;
-
-    const changes: Record<string, { oldValue: any; newValue: any }> = {};
-    const updatedPickupPoint: PickupPoint = { ...oldPickupPoint, ...updates, updatedAt: new Date().toISOString() };
-
-    Object.entries(updates).forEach(([key, newValue]) => {
-      const oldValue = oldPickupPoint[key as keyof PickupPoint];
-      if (oldValue !== newValue) {
-        changes[key] = { oldValue, newValue };
-      }
+  const createSecureBooking = (request: BookingRequest): BookingResponse => {
+    const response = processBookingOnServer(request, {
+      users: currentUser ? [currentUser] : [],
+      schedules,
+      routes,
+      routePoints,
+      discounts,
+      taxConfigs,
+      existingBookings: bookings
     });
 
-    setPickupPoints(prev => prev.map(p => (p.id === id ? updatedPickupPoint : p)));
-
-    // Log activity
-    const log = generateNewActivityLog(
-      'pickup_point',
-      id,
-      updatedPickupPoint.name,
-      'update',
-      changes,
-      currentUser?.id || 'system',
-      currentUser?.name || 'System',
-      `Pickup point "${updatedPickupPoint.name}" updated`
-    );
-    setActivityLogs(prev => [log, ...prev]);
-  };
-
-  const deletePickupPoint = (id: string) => {
-    const pickupPoint = pickupPoints.find(p => p.id === id);
-    if (!pickupPoint) return;
-
-    setPickupPoints(prev => prev.filter(p => p.id !== id));
-
-    // Log activity
-    const log = generateNewActivityLog(
-      'pickup_point',
-      id,
-      pickupPoint.name,
-      'delete',
-      { isActive: { oldValue: pickupPoint.isActive, newValue: false } },
-      currentUser?.id || 'system',
-      currentUser?.name || 'System',
-      `Pickup point "${pickupPoint.name}" deleted`
-    );
-    setActivityLogs(prev => [log, ...prev]);
-  };
-
-  const togglePickupPointStatus = (id: string) => {
-    const pickupPoint = pickupPoints.find(p => p.id === id);
-    if (!pickupPoint) return;
-
-    const newStatus = !pickupPoint.isActive;
-    updatePickupPoint(id, { isActive: newStatus });
-
-    // Log activity
-    const log = generateNewActivityLog(
-      'pickup_point',
-      id,
-      pickupPoint.name,
-      newStatus ? 'activate' : 'deactivate',
-      { isActive: { oldValue: pickupPoint.isActive, newValue: newStatus } },
-      currentUser?.id || 'system',
-      currentUser?.name || 'System',
-      `Pickup point "${pickupPoint.name}" ${newStatus ? 'activated' : 'deactivated'}`
-    );
-    setActivityLogs(prev => [log, ...prev]);
-  };
-
-  const getPickupPointsByRayon = (rayon: Rayon['code']): PickupPoint[] => {
-    return pickupPoints.filter(p => p.rayon === rayon && p.isActive);
-  };
-
-  const getPickupPointById = (id: string): PickupPoint | undefined => {
-    return pickupPoints.find(p => p.id === id);
-  };
-
-  const searchPickupPoints = (query: string): PickupPoint[] => {
-    const lowerQuery = query.toLowerCase();
-    return pickupPoints.filter(
-      p => p.name.toLowerCase().includes(lowerQuery) ||
-           p.code.toLowerCase().includes(lowerQuery) ||
-           p.address.toLowerCase().includes(lowerQuery) ||
-           p.city.toLowerCase().includes(lowerQuery)
-    );
-  };
-
-  // ========== Rayon Management ==========
-
-  const updateRayonInfo = (rayonCode: Rayon['code'], updates: Partial<Rayon>) => {
-    setRayons(prev => prev.map(r => (r.code === rayonCode ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r)));
-
-    const rayon = rayons.find(r => r.code === rayonCode);
-    if (rayon) {
-      const log = generateNewActivityLog(
-        'rayon',
-        rayon.id,
-        rayon.name,
-        'update',
-        Object.entries(updates).reduce((acc, [key, value]) => {
-          acc[key] = { oldValue: rayon[key as keyof Rayon], newValue: value };
-          return acc;
-        }, {} as Record<string, any>),
-        currentUser?.id || 'system',
-        currentUser?.name || 'System',
-        `Rayon "${rayonCode}" information updated`
-      );
-      setActivityLogs(prev => [log, ...prev]);
+    if (response.success && response.booking) {
+      addBooking(response.booking);
     }
+
+    return response;
   };
-
-  const getRayonByCode = (code: Rayon['code']): Rayon | undefined => {
-    return rayons.find(r => r.code === code);
-  };
-
-  const getRayonPickupPointCount = (code: Rayon['code']): number => {
-    return pickupPoints.filter(p => p.rayon === code && p.isActive).length;
-  };
-
-  // ========== Route Sequences ==========
-
-  const addRouteSequence = (sequence: Omit<RouteSequence, 'id'>) => {
-    const newSequence: RouteSequence = {
-      ...sequence,
-      id: `rs${Date.now()}`,
-    };
-    setRouteSequences(prev => [...prev, newSequence]);
-
-    const pickupPoint = pickupPoints.find(p => p.id === newSequence.pickupPointId);
-    const log = generateNewActivityLog(
-      'route_sequence',
-      newSequence.id,
-      `${sequence.routeId} - ${pickupPoint?.name || 'Unknown'}`,
-      'create',
-      { sequenceOrder: { oldValue: null, newValue: sequence.sequenceOrder } },
-      currentUser?.id || 'system',
-      currentUser?.name || 'System',
-      `Route sequence added for route ${sequence.routeId}`
-    );
-    setActivityLogs(prev => [log, ...prev]);
-  };
-
-  const updateRouteSequence = (id: string, updates: Partial<RouteSequence>) => {
-    const oldSequence = routeSequences.find(s => s.id === id);
-    if (!oldSequence) return;
-
-    setRouteSequences(prev => prev.map(s => (s.id === id ? { ...s, ...updates } : s)));
-
-    const changes = Object.entries(updates).reduce((acc, [key, value]) => {
-      acc[key] = { oldValue: oldSequence[key as keyof RouteSequence], newValue: value };
-      return acc;
-    }, {} as Record<string, any>);
-
-    const pickupPoint = pickupPoints.find(p => p.id === oldSequence.pickupPointId);
-    const log = generateNewActivityLog(
-      'route_sequence',
-      id,
-      `${oldSequence.routeId} - ${pickupPoint?.name || 'Unknown'}`,
-      'update',
-      changes,
-      currentUser?.id || 'system',
-      currentUser?.name || 'System',
-      `Route sequence updated for route ${oldSequence.routeId}`
-    );
-    setActivityLogs(prev => [log, ...prev]);
-  };
-
-  const deleteRouteSequence = (id: string) => {
-    const sequence = routeSequences.find(s => s.id === id);
-    if (!sequence) return;
-
-    setRouteSequences(prev => prev.filter(s => s.id !== id));
-
-    const pickupPoint = pickupPoints.find(p => p.id === sequence.pickupPointId);
-    const log = generateNewActivityLog(
-      'route_sequence',
-      id,
-      `${sequence.routeId} - ${pickupPoint?.name || 'Unknown'}`,
-      'delete',
-      { deleted: { oldValue: false, newValue: true } },
-      currentUser?.id || 'system',
-      currentUser?.name || 'System',
-      `Route sequence deleted for route ${sequence.routeId}`
-    );
-    setActivityLogs(prev => [log, ...prev]);
-  };
-
-  const getRouteSequences = (routeId: string): RouteSequence[] => {
-    return routeSequences.filter(s => s.routeId === routeId).sort((a, b) => a.sequenceOrder - b.sequenceOrder);
-  };
-
-  const reorderRouteSequence = (routeId: string, sequences: RouteSequence[]) => {
-    setRouteSequences(prev => {
-      const updated = sequences.map(s => ({ ...s, routeId }));
-      const others = prev.filter(s => s.routeId !== routeId);
-      return [...others, ...updated];
-    });
-
-    const log = generateNewActivityLog(
-      'route_sequence',
-      routeId,
-      routeId,
-      'update',
-      { sequenceOrder: { oldValue: 'previous', newValue: 'reordered' } },
-      currentUser?.id || 'system',
-      currentUser?.name || 'System',
-      `Route sequences reordered for route ${routeId}`
-    );
-    setActivityLogs(prev => [log, ...prev]);
-  };
-
-  // ========== Activity Logging ==========
-
-  const getActivityLogs = (entityType?: ActivityLog['entityType']): ActivityLog[] => {
-    if (!entityType) return activityLogs;
-    return activityLogs.filter(log => log.entityType === entityType);
-  };
-
-  const getActivityLogsByEntity = (entityId: string): ActivityLog[] => {
-    return activityLogs.filter(log => log.entityId === entityId).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  };
-
-  // ========== Original operations ==========
-
-  const addBooking = (booking: Booking) => setBookings(prev => [...prev, booking]);
 
   const updateScheduleStatus = (scheduleId: string, status: Schedule['status']) => {
-    setSchedules(prev => prev.map(s => (s.id === scheduleId ? { ...s, status } : s)));
+    setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, status } : s));
   };
 
   const addRideRequest = (request: RideRequest) => {
@@ -398,7 +179,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const acceptRideRequest = (requestId: string) => {
-    setRideRequests(prev => prev.map(r => (r.id === requestId ? { ...r, status: 'accepted' as const } : r)));
+    setRideRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'accepted' as const } : r));
     const request = rideRequests.find(r => r.id === requestId);
     if (!request) return;
     const schedule = schedules.find(s => s.id === request.scheduleId);
@@ -427,22 +208,295 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const rejectRideRequest = (requestId: string) => {
-    setRideRequests(prev => prev.map(r => (r.id === requestId ? { ...r, status: 'rejected' as const } : r)));
+    setRideRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'rejected' as const } : r));
   };
 
   const checkInPassenger = (bookingId: string) => {
-    setBookings(prev => prev.map(b => (b.id === bookingId ? { ...b, checkedIn: true } : b)));
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, checkedIn: true } : b));
   };
 
-  const recalcRoutePointPrices = (routeId: string, pricePerMeter: number) => {
+  const updateTicketStatus = (ticketId: string, status: TicketStatus, note?: string) => {
+    setTickets(prev => prev.map(t => {
+      if (t.id !== ticketId) return t;
+      const historyItem = {
+        id: `h-${Date.now()}`,
+        ticketId,
+        status,
+        changedBy: currentUser?.name || 'System',
+        timestamp: new Date().toISOString(),
+        note
+      };
+      return {
+        ...t,
+        status,
+        updatedAt: new Date().toISOString(),
+        history: [...t.history, historyItem]
+      };
+    }));
+    toast.success(`Status tiket diperbarui menjadi ${status}`);
+  };
+
+  const addTicketComment = (ticketId: string, message: string, attachments?: string[]) => {
+    if (!currentUser) return;
+    setTickets(prev => prev.map(t => {
+      if (t.id !== ticketId) return t;
+      const newComment: TicketComment = {
+        id: `c-${Date.now()}`,
+        ticketId,
+        senderId: currentUser.id,
+        senderName: currentUser.name,
+        senderRole: currentUser.role,
+        message,
+        timestamp: new Date().toISOString(),
+        attachments
+      };
+      return {
+        ...t,
+        updatedAt: new Date().toISOString(),
+        comments: [...t.comments, newComment]
+      };
+    }));
+    toast.success('Komentar ditambahkan');
+  };
+
+  const submitDriverRegistration = (reg: Omit<Driver, 'id' | 'verificationStatus' | 'submittedAt' | 'updatedAt' | 'logs' | 'status' | 'rating' | 'totalTrips' | 'joinDate'>) => {
+    const regId = `reg-${Date.now()}`;
+    const newReg: Driver = {
+      ...reg,
+      id: regId,
+      status: 'offline',
+      verificationStatus: 'pending',
+      rating: 0,
+      totalTrips: 0,
+      joinDate: new Date().toISOString().split('T')[0],
+      submittedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      logs: [
+        { id: `l-${Date.now()}`, registrationId: regId, status: 'pending', changedBy: 'System', timestamp: new Date().toISOString(), reason: 'Initial submission' }
+      ]
+    };
+    setDrivers(prev => [...prev, newReg]);
+    toast.success('Pendaftaran driver berhasil dikirim. Mohon tunggu verifikasi admin.');
+  };
+
+  const updateRegistrationStatus = (registrationId: string, status: VerificationStatus, reason?: string) => {
+    // 1. Role-based access control (Only admin can verify)
+    if (!currentUser || currentUser.role !== 'admin') {
+      toast.error('Hanya administrator yang dapat melakukan verifikasi.');
+      return;
+    }
+
+    const registration = drivers.find(r => r.id === registrationId);
+    if (!registration) {
+      toast.error('Pendaftaran tidak ditemukan.');
+      return;
+    }
+
+    // 2. Duplicate Validation (Only check on approval)
+    if (status === 'approved') {
+      const isDuplicate = drivers.some(d => 
+        d.id !== registrationId && d.verificationStatus === 'approved' && (
+          d.licenseNumber === registration.licenseNumber || 
+          d.phoneNumber === registration.phoneNumber ||
+          d.vehicleDetails?.plateNumber === registration.vehicleDetails?.plateNumber
+        )
+      );
+
+      if (isDuplicate) {
+        toast.error('Gagal menyetujui: Data driver atau kendaraan sudah terdaftar dalam sistem.');
+        return;
+      }
+    }
+
+    // 3. Update Status and Audit Log
+    setDrivers(prev => prev.map(r => {
+      if (r.id !== registrationId) return r;
+      
+      const newLog: VerificationLog = {
+        id: `l-${Date.now()}`,
+        registrationId,
+        status,
+        changedBy: currentUser.name,
+        timestamp: new Date().toISOString(),
+        reason
+      };
+
+      return {
+        ...r,
+        verificationStatus: status,
+        rejectionReason: status === 'rejected' ? reason : r.rejectionReason,
+        updatedAt: new Date().toISOString(),
+        logs: r.logs ? [...r.logs, newLog] : [newLog],
+        // If approved, update vehicle details status too
+        vehicleDetails: r.vehicleDetails ? {
+          ...r.vehicleDetails,
+          verificationStatus: status,
+          vin: r.vehicleDetails.vin || `VIN-${Date.now()}`,
+          engineNumber: r.vehicleDetails.engineNumber || `ENG-${Date.now()}`
+        } : undefined
+      };
+    }));
+
+    // 5. Send Real-time Notification to Driver (Simulated)
+    addNotification({
+      title: status === 'approved' ? 'Pendaftaran Disetujui' : 'Pendaftaran Ditolak',
+      message: status === 'approved' 
+        ? `Selamat ${registration.name}, pendaftaran Anda telah disetujui. Anda sekarang dapat login sebagai driver.`
+        : `Mohon maaf, pendaftaran Anda ditolak. Alasan: ${reason || 'Data tidak lengkap'}`,
+      type: 'system',
+      role: 'driver'
+    });
+    
+    toast.success(`Status pendaftaran diperbarui menjadi ${status}`);
+  };
+
+  const updateDriverStatus = async (driverId: string, status: 'online' | 'offline', retryCount = 0): Promise<boolean> => {
+    const MAX_RETRIES = 3;
+    const WAIT_TIME = 2000; // 2 seconds minimum between changes
+
+    const driver = drivers.find(d => d.id === driverId);
+    if (!driver) return false;
+
+    // 1. Validation: Wait time check
+    if (driver.lastStatusChange) {
+      const lastChange = new Date(driver.lastStatusChange).getTime();
+      const now = Date.now();
+      if (now - lastChange < WAIT_TIME) {
+        toast.error(`Mohon tunggu sebentar sebelum mengubah status kembali.`);
+        return false;
+      }
+    }
+
+    // 2. Mock Server Sync with Retry Mechanism
+    const syncWithServer = async (): Promise<boolean> => {
+      // Simulate network failure 20% of the time for testing retry
+      const isSuccess = Math.random() > 0.2;
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(isSuccess), 500);
+      });
+    };
+
+    const success = await syncWithServer();
+    if (!success) {
+      if (retryCount < MAX_RETRIES) {
+        console.warn(`[SYNC RETRY] Gagal sinkronisasi status ke server. Mencoba ulang (${retryCount + 1}/${MAX_RETRIES})...`);
+        return updateDriverStatus(driverId, status, retryCount + 1);
+      } else {
+        toast.error('Gagal sinkronisasi status ke server setelah beberapa kali percobaan.');
+        return false;
+      }
+    }
+
+    // 3. Update Local State
+    setDrivers(prev => prev.map(d => 
+      d.id === driverId 
+        ? { ...d, status, lastStatusChange: new Date().toISOString() } 
+        : d
+    ));
+
+    // 4. Notifications
+    const statusMsg = status === 'online' ? 'Anda sekarang ONLINE dan dapat menerima pesanan.' : 'Anda sekarang OFFLINE.';
+    toast.success(statusMsg);
+    
+    // In a real app, we would emit a socket event here:
+    // socket.emit('driver_status_changed', { driverId, status });
+    console.log(`[SERVER NOTIFY] Driver ${driverId} status changed to ${status}`);
+    return true;
+  };
+
+  const updateDriverProfile = (driverId: string, updates: Partial<Driver>) => {
+    setDrivers(prev => prev.map(d => d.id === driverId ? { ...d, ...updates } : d));
+    toast.success('Profil berhasil diperbarui');
+  };
+
+  /**
+   * Recalculates total route distance and price using Haversine formula
+   * based on coordinates of all route points.
+   */
+  const recalculateRouteDistanceAndPrice = (
+    routeId: string,
+    roadConditionMultiplier = 1,
+    vehicleTypeMultiplier = 1
+  ) => {
+    const routePts = routePoints.filter(p => p.routeId === routeId).sort((a, b) => a.order - b.order);
+    if (routePts.length < 2) return;
+
+    let totalDistanceKm = 0;
+    const updatedPoints: RoutePoint[] = [...routePts];
+
+    // Calculate distance between sequential points
+    for (let i = 0; i < updatedPoints.length; i++) {
+      if (i === 0) {
+        updatedPoints[i].distanceFromPrevious = 0;
+        updatedPoints[i].cumulativeDistance = 0;
+      } else {
+        const prev = updatedPoints[i - 1];
+        const curr = updatedPoints[i];
+        
+        if (isValidRouteData(prev.lat, prev.lng, curr.lat, curr.lng)) {
+          const dist = calculateHaversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+          totalDistanceKm += dist;
+          updatedPoints[i].distanceFromPrevious = Math.round(dist * 1000); // meters
+          updatedPoints[i].cumulativeDistance = Math.round(totalDistanceKm * 1000); // meters
+        }
+      }
+    }
+
+    const totalDistanceMeters = Math.round(totalDistanceKm * 1000);
+
+    setRoutePoints(prev => {
+      const others = prev.filter(p => p.routeId !== routeId);
+      const finalizedPoints = updatedPoints.map(p => ({
+        ...p,
+        distanceToDestination: totalDistanceMeters - p.cumulativeDistance,
+      }));
+      return [...others, ...finalizedPoints];
+    });
+
+    setRoutes(prev => prev.map(r => {
+      if (r.id !== routeId) return r;
+      
+      const pricePerMeter = r.pricePerMeter || 2;
+      const { finalPrice } = calculateFinalPrice(totalDistanceMeters, pricePerMeter, {
+        multipliers: { roadCondition: roadConditionMultiplier, vehicleType: vehicleTypeMultiplier }
+      });
+
+      return {
+        ...r,
+        distanceMeters: totalDistanceMeters,
+        distanceKm: Number(totalDistanceKm.toFixed(2)),
+        price: finalPrice,
+        roadConditionMultiplier,
+        vehicleTypeMultiplier
+      };
+    }));
+  };
+
+  const recalcRoutePointPrices = (
+    routeId: string, 
+    pricePerMeter: number, 
+    roadConditionMultiplier?: number, 
+    vehicleTypeMultiplier?: number
+  ) => {
     setRoutePoints(prev => {
       const routePts = prev.filter(p => p.routeId === routeId).sort((a, b) => a.order - b.order);
       const totalDist = routePts.length > 0 ? routePts[routePts.length - 1].cumulativeDistance : 0;
-      const updated = routePts.map(p => ({
-        ...p,
-        distanceToDestination: totalDist - p.cumulativeDistance,
-        price: Math.round((totalDist - p.cumulativeDistance) * pricePerMeter),
-      }));
+      
+      // Use provided multipliers or fallback to current route state
+      const route = routes.find(r => r.id === routeId);
+      const roadMultiplier = roadConditionMultiplier !== undefined ? roadConditionMultiplier : (route?.roadConditionMultiplier || 1);
+      const vehicleMultiplier = vehicleTypeMultiplier !== undefined ? vehicleTypeMultiplier : (route?.vehicleTypeMultiplier || 1);
+
+      const updated = routePts.map(p => {
+        const { finalPrice } = calculateFinalPrice(totalDist - p.cumulativeDistance, pricePerMeter, {
+          multipliers: { roadCondition: roadMultiplier, vehicleType: vehicleMultiplier }
+        });
+        return {
+          ...p,
+          distanceToDestination: totalDist - p.cumulativeDistance,
+          price: finalPrice,
+        };
+      });
       const others = prev.filter(p => p.routeId !== routeId);
       return [...others, ...updated];
     });
@@ -450,64 +504,244 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
       if (r.id !== routeId) return r;
       const routePts = routePoints.filter(p => p.routeId === routeId).sort((a, b) => a.order - b.order);
       const totalDist = routePts.length > 0 ? routePts[routePts.length - 1].cumulativeDistance : 0;
-      return { ...r, pricePerMeter, price: Math.round(totalDist * pricePerMeter) };
+      
+      const roadMultiplier = roadConditionMultiplier !== undefined ? roadConditionMultiplier : (r.roadConditionMultiplier || 1);
+      const vehicleMultiplier = vehicleTypeMultiplier !== undefined ? vehicleTypeMultiplier : (r.vehicleTypeMultiplier || 1);
+      
+      const { finalPrice } = calculateFinalPrice(totalDist, pricePerMeter, {
+        multipliers: { roadCondition: roadMultiplier, vehicleType: vehicleMultiplier }
+      });
+      return { 
+        ...r, 
+        pricePerMeter, 
+        price: finalPrice,
+        roadConditionMultiplier: roadMultiplier,
+        vehicleTypeMultiplier: vehicleMultiplier
+      };
     }));
   };
 
+  const assignDriverToSchedule = useCallback((scheduleId: string, driverId: string) => {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    const driver = drivers.find(d => d.id === driverId);
+
+    if (!schedule || !driver) {
+      toast.error('Jadwal atau driver tidak ditemukan');
+      return;
+    }
+
+    // Check if driver is already assigned to another schedule at the same time
+    const conflictingSchedule = schedules.find(s =>
+      s.id !== scheduleId &&
+      s.driverId === driverId &&
+      s.departureDate === schedule.departureDate &&
+      Math.abs(new Date(`2000-01-01T${s.departureTime}`).getTime() - new Date(`2000-01-01T${schedule.departureTime}`).getTime()) < 2 * 60 * 60 * 1000 // 2 hours buffer
+    );
+
+    if (conflictingSchedule) {
+      toast.error('Driver sudah memiliki jadwal di waktu yang sama');
+      return;
+    }
+
+    // Update schedule with driver assignment
+    setSchedules(prev => prev.map(s =>
+      s.id === scheduleId ? { ...s, driverId, status: 'scheduled' as const } : s
+    ));
+
+    // Notify driver
+    addNotification({
+      title: 'Jadwal Baru Ditugaskan',
+      message: `Anda ditugaskan untuk rute ${routes.find(r => r.id === schedule.routeId)?.name} pada ${schedule.departureDate} jam ${schedule.departureTime}`,
+      type: 'trip',
+      role: 'driver'
+    });
+
+    // Notify admin
+    addNotification({
+      title: 'Driver Ditugaskan',
+      message: `${driver.name} ditugaskan ke jadwal ${routes.find(r => r.id === schedule.routeId)?.name}`,
+      type: 'system',
+      role: 'admin'
+    });
+
+    toast.success(`Driver ${driver.name} berhasil ditugaskan ke jadwal`);
+  }, [schedules, drivers, routes, addNotification]);
+
+  const removeDriverFromSchedule = useCallback((scheduleId: string) => {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    if (!schedule) return;
+
+    setSchedules(prev => prev.map(s =>
+      s.id === scheduleId ? { ...s, driverId: undefined, status: 'cancelled' as const } : s
+    ));
+
+    // Notify driver if assigned
+    if (schedule.driverId) {
+      addNotification({
+        title: 'Jadwal Dibatalkan',
+        message: `Penugasan untuk rute ${routes.find(r => r.id === schedule.routeId)?.name} telah dibatalkan`,
+        type: 'trip',
+        role: 'driver'
+      });
+    }
+
+    toast.success('Driver berhasil dihapus dari jadwal');
+  }, [schedules, routes, addNotification]);
+
+  const updateTripStatus = useCallback((scheduleId: string, status: Schedule['status'], notes?: string) => {
+    const schedule = schedules.find(s => s.id === scheduleId);
+    if (!schedule) return;
+
+    const route = routes.find(r => r.id === schedule.routeId);
+    const driver = drivers.find(d => d.id === schedule.driverId);
+
+    setSchedules(prev => prev.map(s =>
+      s.id === scheduleId ? { ...s, status, updatedAt: new Date().toISOString() } : s
+    ));
+
+    // Notify passengers
+    const affectedBookings = bookings.filter(b => b.scheduleId === scheduleId && b.status === 'confirmed');
+    affectedBookings.forEach(booking => {
+      let message = '';
+      switch (status) {
+        case 'boarding':
+          message = `Shuttle ${route?.name} sedang boarding. Silakan menuju halte keberangkatan.`;
+          break;
+        case 'departed':
+          message = `Shuttle ${route?.name} telah berangkat dari halte keberangkatan.`;
+          break;
+        case 'arrived':
+          message = `Shuttle ${route?.name} telah tiba di tujuan. Terima kasih telah menggunakan layanan kami.`;
+          break;
+        case 'cancelled':
+          message = `Maaf, perjalanan ${route?.name} telah dibatalkan. ${notes || ''}`;
+          break;
+      }
+
+      if (message) {
+        addNotification({
+          title: `Update Perjalanan - ${route?.name}`,
+          message,
+          type: 'trip',
+          role: 'customer'
+        });
+      }
+    });
+
+    // Notify driver
+    if (driver) {
+      let driverMessage = '';
+      switch (status) {
+        case 'boarding':
+          driverMessage = `Waktunya boarding untuk rute ${route?.name}. Pastikan semua penumpang sudah naik.`;
+          break;
+        case 'departed':
+          driverMessage = `Perjalanan ${route?.name} telah dimulai. Selamat berkendara!`;
+          break;
+        case 'arrived':
+          driverMessage = `Perjalanan ${route?.name} telah selesai. Terima kasih atas dedikasinya.`;
+          break;
+      }
+
+      if (driverMessage) {
+        addNotification({
+          title: 'Update Status Trip',
+          message: driverMessage,
+          type: 'trip',
+          role: 'driver'
+        });
+      }
+    }
+
+    // Notify admin
+    addNotification({
+      title: 'Update Status Trip',
+      message: `Trip ${route?.name} status: ${status}${notes ? ` - ${notes}` : ''}`,
+      type: 'trip',
+      role: 'admin'
+    });
+
+    toast.success(`Status trip diperbarui menjadi ${status}`);
+  }, [schedules, routes, drivers, bookings, addNotification]);
+
+  const notifyBookingCreated = useCallback((booking: Booking) => {
+    const route = routes.find(r => r.id === booking.routeId);
+    const schedule = schedules.find(s => s.id === booking.scheduleId);
+
+    // Notify passenger
+    addNotification({
+      title: 'Booking Berhasil',
+      message: `Booking ${route?.name} kursi ${booking.seatNumber} telah dikonfirmasi`,
+      type: 'booking',
+      role: 'customer'
+    });
+
+    // Notify driver if assigned
+    if (schedule?.driverId) {
+      const driver = drivers.find(d => d.id === schedule.driverId);
+      if (driver) {
+        addNotification({
+          title: 'Penumpang Baru',
+          message: `${booking.userName} telah booking kursi ${booking.seatNumber} untuk rute ${route?.name}`,
+          type: 'booking',
+          role: 'driver'
+        });
+      }
+    }
+
+    // Notify admin
+    addNotification({
+      title: 'Booking Baru',
+      message: `Booking baru: ${booking.userName} - ${route?.name} kursi ${booking.seatNumber}`,
+      type: 'booking',
+      role: 'admin'
+    });
+  }, [routes, schedules, drivers, addNotification]);
+
+  const notifyTripUpdate = useCallback((scheduleId: string, status: Schedule['status']) => {
+    updateTripStatus(scheduleId, status);
+  }, [updateTripStatus]);
+
+  const getAvailableDrivers = useCallback((date: string, timeSlot?: string) => {
+    return drivers.filter(driver => {
+      // Driver must be approved and online
+      if (driver.verificationStatus !== 'approved' || driver.status !== 'online') {
+        return false;
+      }
+
+      // Check if driver has conflicting schedules
+      const hasConflict = schedules.some(schedule =>
+        schedule.driverId === driver.id &&
+        schedule.departureDate === date &&
+        (!timeSlot || Math.abs(new Date(`2000-01-01T${schedule.departureTime}`).getTime() - new Date(`2000-01-01T${timeSlot}`).getTime()) < 2 * 60 * 60 * 1000)
+      );
+
+      return !hasConflict;
+    });
+  }, [drivers, schedules]);
+
+  const getDriverSchedule = useCallback((driverId: string, date?: string) => {
+    return schedules.filter(schedule =>
+      schedule.driverId === driverId &&
+      (!date || schedule.departureDate === date)
+    );
+  }, [schedules]);
+
   return (
-    <ShuttleContext.Provider
-      value={{
-        currentUser,
-        login,
-        logout,
-        routes,
-        routePoints,
-        schedules,
-        drivers,
-        vehicles,
-        bookings,
-        rayonPricing,
-        rideRequests,
-        pickupPoints,
-        rayons,
-        routeSequences,
-        activityLogs,
-        addPickupPoint,
-        updatePickupPoint,
-        deletePickupPoint,
-        getPickupPointsByRayon,
-        getPickupPointById,
-        searchPickupPoints,
-        togglePickupPointStatus,
-        updateRayonInfo,
-        getRayonByCode,
-        getRayonPickupPointCount,
-        addRouteSequence,
-        updateRouteSequence,
-        deleteRouteSequence,
-        getRouteSequences,
-        reorderRouteSequence,
-        getActivityLogs,
-        getActivityLogsByEntity,
-        addBooking,
-        updateScheduleStatus,
-        addRideRequest,
-        acceptRideRequest,
-        rejectRideRequest,
-        checkInPassenger,
-        recalcRoutePointPrices,
-        setRoutes,
-        setRoutePoints,
-        setSchedules,
-        setDrivers,
-        setVehicles,
-        setBookings,
-        setRayonPricing,
-        setPickupPoints,
-        setRayons,
-        setActivityLogs,
-      }}
-    >
+    <ShuttleContext.Provider value={{
+      currentUser, login, logout,
+      routes, routePoints, schedules, drivers, vehicles, bookings, rayonPricing, rideRequests,
+      discounts, taxConfigs, auditLogs,
+      driverLocations, trackingLogs, updateDriverLocation,
+      tickets, updateTicketStatus, addTicketComment,
+      registrations, submitDriverRegistration, updateRegistrationStatus,
+      addAuditLog, createSecureBooking, addBooking, updateScheduleStatus, addRideRequest, acceptRideRequest, rejectRideRequest, checkInPassenger,
+      updateDriverStatus, updateDriverProfile,
+      recalcRoutePointPrices, recalculateRouteDistanceAndPrice,
+      assignDriverToSchedule, removeDriverFromSchedule, updateTripStatus, notifyBookingCreated, notifyTripUpdate, getAvailableDrivers, getDriverSchedule,
+      setRoutes, setRoutePoints, setSchedules, setDrivers, setVehicles, setBookings, setRayonPricing,
+      setDiscounts, setTaxConfigs,
+    }}>
       {children}
     </ShuttleContext.Provider>
   );

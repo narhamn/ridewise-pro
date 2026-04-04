@@ -1,16 +1,144 @@
-import {
-  Route,
-  RoutePoint,
-  Schedule,
-  Driver,
-  Vehicle,
-  Booking,
-  RayonPricing,
-  PickupPoint,
-  Rayon,
-  RouteSequence,
-  ActivityLog,
-} from '@/types/shuttle';
+import { Route, RoutePoint, Schedule, Driver, Vehicle, Booking, RayonPricing, Discount, TaxConfig, Ticket, DriverRegistration } from '@/types/shuttle';
+import { calculateFinalPrice, formatPrice } from '@/lib/pricing';
+
+export const dummyRegistrations: DriverRegistration[] = [
+  {
+    id: 'reg-1',
+    name: 'Rizky Ramadhan',
+    email: 'rizky.ramadhan@example.com',
+    phoneNumber: '081299998888',
+    licenseNumber: '1234-5678-901234',
+    joinDate: '2024-04-03',
+    rating: 0,
+    totalTrips: 0,
+    status: 'offline',
+    verificationStatus: 'pending',
+    address: 'Jl. Setiabudi No. 45, Medan',
+    vehicleDetails: {
+      plateNumber: 'BK 9999 RR',
+      brandModel: 'Toyota Hiace Premium',
+      year: 2023,
+      color: 'Silver Metallic',
+      verificationStatus: 'pending'
+    },
+    submittedAt: '2024-04-03T14:20:00Z',
+    updatedAt: '2024-04-03T14:20:00Z',
+    documents: [
+      { id: 'd-1', type: 'KTP', status: 'pending', fileUrl: 'ktp-rizky.jpg', ocrData: { name: 'RIZKY RAMADHAN', nik: '1201010101010001' }, manipulationScore: 0.05 },
+      { id: 'd-2', type: 'SIM', status: 'pending', fileUrl: 'sim-rizky.jpg', ocrData: { type: 'SIM A', expiry: '2028-12-31' }, manipulationScore: 0.02 },
+      { id: 'd-3', type: 'STNK', status: 'pending', fileUrl: 'stnk-rizky.jpg', manipulationScore: 0.08 },
+      { id: 'd-4', type: 'FOTO_DIRI', status: 'pending', fileUrl: 'selfie-rizky.jpg', manipulationScore: 0.01 }
+    ],
+    logs: [
+      { id: 'l-1', registrationId: 'reg-1', status: 'pending', changedBy: 'System', timestamp: '2024-04-03T14:20:00Z', reason: 'Initial submission' }
+    ]
+  },
+  {
+    id: 'reg-2',
+    name: 'Maya Saputri',
+    email: 'maya.s@example.com',
+    phoneNumber: '081377776666',
+    licenseNumber: '5555-4444-333322',
+    joinDate: '2024-04-01',
+    rating: 0,
+    totalTrips: 0,
+    status: 'offline',
+    verificationStatus: 'rejected',
+    address: 'Jl. Gatot Subroto No. 88, Medan',
+    vehicleDetails: {
+      plateNumber: 'BK 7777 MS',
+      brandModel: 'Isuzu Elf Giga',
+      year: 2021,
+      color: 'Putih',
+      verificationStatus: 'rejected'
+    },
+    submittedAt: '2024-04-01T09:00:00Z',
+    updatedAt: '2024-04-02T10:00:00Z',
+    rejectionReason: 'Foto KTP tidak terbaca jelas dan SIM sudah kadaluwarsa.',
+    documents: [
+      { id: 'd-5', type: 'KTP', status: 'rejected', fileUrl: 'ktp-maya.jpg' },
+      { id: 'd-6', type: 'SIM', status: 'rejected', fileUrl: 'sim-maya.jpg', expiryDate: '2023-12-31' }
+    ],
+    logs: [
+      { id: 'l-2', registrationId: 'reg-2', status: 'pending', changedBy: 'System', timestamp: '2024-04-01T09:00:00Z' },
+      { id: 'l-3', registrationId: 'reg-2', status: 'rejected', changedBy: 'Admin Ridewise', timestamp: '2024-04-02T10:00:00Z', reason: 'KTP blur & SIM expired' }
+    ]
+  }
+];
+
+export const dummyTickets: Ticket[] = [
+  {
+    id: 't1',
+    ticketNumber: 'TKT-20240401-001',
+    title: 'Gagal melakukan pembayaran via E-Wallet',
+    description: 'Saya mencoba membayar tiket rute Hermes ke Kualanamu menggunakan e-wallet tetapi muncul error "Internal Server Error" terus menerus.',
+    category: 'payment',
+    priority: 'high',
+    status: 'open',
+    reporterId: 'u1',
+    reporterName: 'Siti Aminah',
+    reporterEmail: 'siti@example.com',
+    reporterPhone: '081234567890',
+    createdAt: '2024-04-01T08:30:00Z',
+    updatedAt: '2024-04-01T08:30:00Z',
+    attachments: ['payment_error_screenshot.png'],
+    comments: [],
+    history: [
+      {
+        id: 'h1',
+        ticketId: 't1',
+        status: 'open',
+        changedBy: 'System',
+        timestamp: '2024-04-01T08:30:00Z',
+        note: 'Ticket created by user'
+      }
+    ]
+  },
+  {
+    id: 't2',
+    ticketNumber: 'TKT-20240402-002',
+    title: 'Driver tidak menjemput di lokasi',
+    description: 'Driver Budi Santoso tidak datang ke titik jemput Terminal Hermes padahal status sudah departed.',
+    category: 'driver_report',
+    priority: 'critical',
+    status: 'in_progress',
+    reporterId: 'u2',
+    reporterName: 'Rudi Hartono',
+    reporterEmail: 'rudi@example.com',
+    reporterPhone: '081234567892',
+    createdAt: '2024-04-02T10:15:00Z',
+    updatedAt: '2024-04-02T11:00:00Z',
+    attachments: [],
+    comments: [
+      {
+        id: 'c1',
+        ticketId: 't2',
+        senderId: 'admin1',
+        senderName: 'Admin Ridewise',
+        senderRole: 'admin',
+        message: 'Mohon maaf atas ketidaknyamanannya. Kami sedang menghubungi driver yang bersangkutan untuk klarifikasi.',
+        timestamp: '2024-04-02T11:00:00Z'
+      }
+    ],
+    history: [
+      {
+        id: 'h2',
+        ticketId: 't2',
+        status: 'open',
+        changedBy: 'System',
+        timestamp: '2024-04-02T10:15:00Z'
+      },
+      {
+        id: 'h3',
+        ticketId: 't2',
+        status: 'in_progress',
+        changedBy: 'Admin Ridewise',
+        timestamp: '2024-04-02T11:00:00Z',
+        note: 'Investigating with driver'
+      }
+    ]
+  }
+];
 
 export const defaultRayonPricing: RayonPricing[] = [
   { rayon: 'A', pricePerMeter: 2, label: 'Rayon A (Dalam Kota)' },
@@ -19,25 +147,75 @@ export const defaultRayonPricing: RayonPricing[] = [
   { rayon: 'D', pricePerMeter: 1, label: 'Rayon D (Antar Kota Jauh)' },
 ];
 
+export const dummyDiscounts: Discount[] = [
+  {
+    id: 'promo1',
+    code: 'DISKON10',
+    type: 'percentage',
+    value: 10,
+    minBookingAmount: 50000,
+    maxDiscountAmount: 20000,
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    usageLimit: 100,
+    usageCount: 10,
+    isActive: true,
+    description: 'Diskon 10% up to Rp 20.000'
+  },
+  {
+    id: 'promo2',
+    code: 'HEMAT5K',
+    type: 'fixed',
+    value: 5000,
+    minBookingAmount: 30000,
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    usageLimit: 500,
+    usageCount: 50,
+    isActive: true,
+    description: 'Potongan harga Rp 5.000'
+  },
+  {
+    id: 'promo3',
+    code: 'PROMOEXPIRED',
+    type: 'percentage',
+    value: 50,
+    minBookingAmount: 10000,
+    startDate: '2025-01-01',
+    endDate: '2025-12-31',
+    usageLimit: 10,
+    usageCount: 10,
+    isActive: true,
+    description: 'Promo sudah kedaluwarsa'
+  }
+];
+
+export const defaultTaxConfigs: TaxConfig[] = [
+  { id: 'tax1', name: 'PPN', rate: 0.11, region: 'Nasional', isActive: true },
+];
+
 export const dummyRoutes: Route[] = [
-  { id: 'r1', name: 'Hermes → Kualanamu', rayon: 'A', origin: 'Hermes', destination: 'Kualanamu', distanceMeters: 38000, pricePerMeter: 2, price: 76000 },
-  { id: 'r2', name: 'Amplas → Parapat', rayon: 'A', origin: 'Amplas', destination: 'Parapat', distanceMeters: 175000, pricePerMeter: 1.5, price: 262500 },
-  { id: 'r3', name: 'Pinang Baris → Sibolga', rayon: 'B', origin: 'Pinang Baris', destination: 'Sibolga', distanceMeters: 280000, pricePerMeter: 1.2, price: 336000 },
-  { id: 'r4', name: 'Medan → Berastagi', rayon: 'B', origin: 'Medan', destination: 'Berastagi', distanceMeters: 66000, pricePerMeter: 2, price: 132000 },
-  { id: 'r5', name: 'Medan → Pematang Siantar', rayon: 'C', origin: 'Medan', destination: 'Pematang Siantar', distanceMeters: 128000, pricePerMeter: 1.5, price: 192000 },
-  { id: 'r6', name: 'Medan → Rantau Prapat', rayon: 'C', origin: 'Medan', destination: 'Rantau Prapat', distanceMeters: 285000, pricePerMeter: 1.2, price: 342000 },
-  { id: 'r7', name: 'Medan → Padang Sidempuan', rayon: 'D', origin: 'Medan', destination: 'Padang Sidempuan', distanceMeters: 390000, pricePerMeter: 1, price: 390000 },
-  { id: 'r8', name: 'Medan → Kisaran', rayon: 'D', origin: 'Medan', destination: 'Kisaran', distanceMeters: 195000, pricePerMeter: 1.3, price: 253500 },
+  { id: 'r1', name: 'Hermes → Kualanamu', rayon: 'A', origin: 'Hermes', destination: 'Kualanamu', distanceMeters: 38000, distanceKm: 38, pricePerMeter: 2, price: 76000, roadConditionMultiplier: 1, vehicleTypeMultiplier: 1 },
+  { id: 'r2', name: 'Amplas → Parapat', rayon: 'A', origin: 'Amplas', destination: 'Parapat', distanceMeters: 175000, distanceKm: 175, pricePerMeter: 1.5, price: 262500, roadConditionMultiplier: 1.1, vehicleTypeMultiplier: 1 },
+  { id: 'r3', name: 'Pinang Baris → Sibolga', rayon: 'B', origin: 'Pinang Baris', destination: 'Sibolga', distanceMeters: 280000, distanceKm: 280, pricePerMeter: 1.2, price: 336000, roadConditionMultiplier: 1.2, vehicleTypeMultiplier: 1 },
+  { id: 'r4', name: 'Medan → Berastagi', rayon: 'B', origin: 'Medan', destination: 'Berastagi', distanceMeters: 66000, distanceKm: 66, pricePerMeter: 2, price: 132000, roadConditionMultiplier: 1.1, vehicleTypeMultiplier: 1 },
+  { id: 'r5', name: 'Medan → Pematang Siantar', rayon: 'C', origin: 'Medan', destination: 'Pematang Siantar', distanceMeters: 128000, distanceKm: 128, pricePerMeter: 1.5, price: 192000, roadConditionMultiplier: 1, vehicleTypeMultiplier: 1 },
+  { id: 'r6', name: 'Medan → Rantau Prapat', rayon: 'C', origin: 'Medan', destination: 'Rantau Prapat', distanceMeters: 285000, distanceKm: 285, pricePerMeter: 1.2, price: 342000, roadConditionMultiplier: 1, vehicleTypeMultiplier: 1 },
+  { id: 'r7', name: 'Medan → Padang Sidempuan', rayon: 'D', origin: 'Medan', destination: 'Padang Sidempuan', distanceMeters: 390000, distanceKm: 390, pricePerMeter: 1, price: 390000, roadConditionMultiplier: 1.3, vehicleTypeMultiplier: 1 },
+  { id: 'r8', name: 'Medan → Kisaran', rayon: 'D', origin: 'Medan', destination: 'Kisaran', distanceMeters: 195000, distanceKm: 195, pricePerMeter: 1.3, price: 253500, roadConditionMultiplier: 1, vehicleTypeMultiplier: 1 },
 ];
 
 // Helper to calculate distanceToDestination and price
-const pt = (id: string, routeId: string, code: string, name: string, order: number, lat: number, lng: number, distFromPrev: number, cumDist: number, totalDist: number, ppm: number): RoutePoint => ({
-  id, routeId, code, name, order, lat, lng,
-  distanceFromPrevious: distFromPrev,
-  cumulativeDistance: cumDist,
-  distanceToDestination: totalDist - cumDist,
-  price: Math.round((totalDist - cumDist) * ppm),
-});
+const pt = (id: string, routeId: string, code: string, name: string, order: number, lat: number, lng: number, distFromPrev: number, cumDist: number, totalDist: number, ppm: number): RoutePoint => {
+  const { finalPrice } = calculateFinalPrice(totalDist - cumDist, ppm);
+  return {
+    id, routeId, code, name, order, lat, lng,
+    distanceFromPrevious: distFromPrev,
+    cumulativeDistance: cumDist,
+    distanceToDestination: totalDist - cumDist,
+    price: finalPrice,
+  };
+};
 
 export const dummyRoutePoints: RoutePoint[] = [
   // r1: Hermes → Kualanamu (38km, Rp2/m) — price = distToDestination * 2
@@ -82,19 +260,281 @@ export const dummyRoutePoints: RoutePoint[] = [
 ];
 
 export const dummyDrivers: Driver[] = [
-  { id: 'd1', name: 'Budi Santoso', email: 'budi@shuttle.com', phone: '081234567890', licenseNumber: 'SIM-001', status: 'active' },
-  { id: 'd2', name: 'Ahmad Ridwan', email: 'ahmad@shuttle.com', phone: '081234567891', licenseNumber: 'SIM-002', status: 'active' },
-  { id: 'd3', name: 'Dedi Kurniawan', email: 'dedi@shuttle.com', phone: '081234567892', licenseNumber: 'SIM-003', status: 'active' },
-  { id: 'd4', name: 'Eko Prasetyo', email: 'eko@shuttle.com', phone: '081234567893', licenseNumber: 'SIM-004', status: 'inactive' },
-  { id: 'd5', name: 'Fajar Nugroho', email: 'fajar@shuttle.com', phone: '081234567894', licenseNumber: 'SIM-005', status: 'active' },
+  { 
+    id: 'd1', 
+    name: 'Budi Santoso', 
+    phoneNumber: '081234567890', 
+    email: 'budi@ridewise.com',
+    licenseNumber: 'SIM-001', 
+    status: 'online', 
+    verificationStatus: 'approved',
+    rating: 4.8, 
+    totalTrips: 120, 
+    joinDate: '2023-01-15',
+    birthDate: '1985-05-20',
+    address: 'Jl. Merdeka No. 123, Medan',
+    vehicleDetails: {
+      plateNumber: 'BK 1234 AB',
+      brandModel: 'Toyota Hiace Commuter',
+      year: 2022,
+      color: 'Putih',
+      vin: 'MHF1234567890ABCD',
+      engineNumber: '2KD-FTV123456',
+      verificationStatus: 'approved'
+    },
+    documents: [
+      { id: 'doc1', type: 'KTP', status: 'approved', expiryDate: '2030-05-20', fileUrl: '#' },
+      { id: 'doc2', type: 'SIM', status: 'approved', expiryDate: '2028-05-20', fileUrl: '#' },
+      { id: 'doc3', type: 'STNK', status: 'approved', expiryDate: '2027-01-15', fileUrl: '#' }
+    ],
+    security: {
+      twoFactorEnabled: false,
+      loginHistory: [
+        { id: 'log1', device: 'Samsung Galaxy S21', location: 'Medan, Indonesia', timestamp: '2024-04-04T08:00:00Z' },
+        { id: 'log2', device: 'Chrome Windows', location: 'Medan, Indonesia', timestamp: '2024-04-03T10:30:00Z' }
+      ]
+    }
+  },
+  { id: 'd2', name: 'Ahmad Ridwan', phoneNumber: '081234567891', email: 'ahmad@ridewise.com', licenseNumber: 'SIM-002', status: 'online', verificationStatus: 'approved', rating: 4.9, totalTrips: 85, joinDate: '2023-03-10' },
+  { id: 'd3', name: 'Dedi Kurniawan', phoneNumber: '081234567892', email: 'dedi@ridewise.com', licenseNumber: 'SIM-003', status: 'online', verificationStatus: 'approved', rating: 4.7, totalTrips: 210, joinDate: '2022-11-20' },
+  { id: 'd4', name: 'Eko Prasetyo', phoneNumber: '081234567893', email: 'eko@ridewise.com', licenseNumber: 'SIM-004', status: 'offline', verificationStatus: 'approved', rating: 4.5, totalTrips: 45, joinDate: '2023-06-05' },
+  { id: 'd5', name: 'Fajar Nugroho', phoneNumber: '081234567894', email: 'fajar@ridewise.com', licenseNumber: 'SIM-005', status: 'online', verificationStatus: 'approved', rating: 4.8, totalTrips: 132, joinDate: '2023-02-28' },
 ];
 
 export const dummyVehicles: Vehicle[] = [
-  { id: 'v1', name: 'Hiace Commuter', plateNumber: 'BK 1234 AB', capacity: 12, type: 'Minibus', status: 'active' },
-  { id: 'v2', name: 'Elf Long', plateNumber: 'BK 5678 CD', capacity: 10, type: 'Minibus', status: 'active' },
-  { id: 'v3', name: 'Avanza', plateNumber: 'BK 9012 EF', capacity: 8, type: 'MPV', status: 'active' },
-  { id: 'v4', name: 'Innova Reborn', plateNumber: 'BK 3456 GH', capacity: 8, type: 'MPV', status: 'maintenance' },
-  { id: 'v5', name: 'Hiace Premio', plateNumber: 'BK 7890 IJ', capacity: 12, type: 'Minibus', status: 'active' },
+  {
+    id: 'v1',
+    name: 'Hiace Commuter',
+    plateNumber: 'BK 1234 AB',
+    capacity: 12,
+    type: 'Minibus',
+    status: 'active',
+    brand: 'Toyota',
+    model: 'Hiace',
+    year: 2020,
+    color: 'Putih',
+    vin: 'MHKM1BA1AKJ123456',
+    engineNumber: '1TR123456',
+    fuelType: 'diesel',
+    transmission: 'manual',
+    stnkNumber: 'STNK-001234567890',
+    stnkExpiryDate: '2027-12-31',
+    stnkOwnerName: 'PT Ridewise Transport',
+    documents: [
+      {
+        id: 'doc-v1-stnk',
+        type: 'STNK',
+        status: 'approved',
+        fileUrl: '/documents/stnk-v1.pdf',
+        expiryDate: '2027-12-31',
+        uploadedAt: '2024-01-15T10:00:00Z',
+        verifiedAt: '2024-01-16T14:30:00Z',
+        verifiedBy: 'admin1'
+      },
+      {
+        id: 'doc-v1-foto',
+        type: 'FOTO_KENDARAAN',
+        status: 'approved',
+        fileUrl: '/images/vehicles/v1-exterior.jpg',
+        uploadedAt: '2024-01-15T10:00:00Z',
+        verifiedAt: '2024-01-16T14:30:00Z',
+        verifiedBy: 'admin1'
+      }
+    ],
+    photos: {
+      exterior: '/images/vehicles/v1-exterior.jpg',
+      interior: '/images/vehicles/v1-interior.jpg',
+      dashboard: '/images/vehicles/v1-dashboard.jpg'
+    },
+    lastServiceDate: '2024-03-01',
+    nextServiceDate: '2024-09-01',
+    mileage: 45000,
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-03-01T08:00:00Z',
+    createdBy: 'admin1'
+  },
+  {
+    id: 'v2',
+    name: 'Elf Long',
+    plateNumber: 'BK 5678 CD',
+    capacity: 10,
+    type: 'Minibus',
+    status: 'active',
+    brand: 'Isuzu',
+    model: 'Elf',
+    year: 2019,
+    color: 'Biru',
+    vin: 'JHMCM56557C123456',
+    engineNumber: '4JJ1-123456',
+    fuelType: 'diesel',
+    transmission: 'manual',
+    stnkNumber: 'STNK-005678901234',
+    stnkExpiryDate: '2026-08-15',
+    stnkOwnerName: 'PT Ridewise Transport',
+    documents: [
+      {
+        id: 'doc-v2-stnk',
+        type: 'STNK',
+        status: 'approved',
+        fileUrl: '/documents/stnk-v2.pdf',
+        expiryDate: '2026-08-15',
+        uploadedAt: '2024-02-01T09:00:00Z',
+        verifiedAt: '2024-02-02T11:15:00Z',
+        verifiedBy: 'admin1'
+      }
+    ],
+    photos: {
+      exterior: '/images/vehicles/v2-exterior.jpg'
+    },
+    lastServiceDate: '2024-02-15',
+    nextServiceDate: '2024-08-15',
+    mileage: 52000,
+    createdAt: '2024-02-01T09:00:00Z',
+    updatedAt: '2024-02-15T07:30:00Z',
+    createdBy: 'admin1'
+  },
+  {
+    id: 'v3',
+    name: 'Avanza',
+    plateNumber: 'BK 9012 EF',
+    capacity: 8,
+    type: 'MPV',
+    status: 'active',
+    brand: 'Toyota',
+    model: 'Avanza',
+    year: 2021,
+    color: 'Hitam',
+    vin: 'MHFE3BJ3AKJ789012',
+    engineNumber: 'K3VE-789012',
+    fuelType: 'bensin',
+    transmission: 'manual',
+    stnkNumber: 'STNK-009012345678',
+    stnkExpiryDate: '2028-03-20',
+    stnkOwnerName: 'PT Ridewise Transport',
+    documents: [
+      {
+        id: 'doc-v3-stnk',
+        type: 'STNK',
+        status: 'approved',
+        fileUrl: '/documents/stnk-v3.pdf',
+        expiryDate: '2028-03-20',
+        uploadedAt: '2024-03-10T14:00:00Z',
+        verifiedAt: '2024-03-11T16:45:00Z',
+        verifiedBy: 'admin1'
+      },
+      {
+        id: 'doc-v3-bpkb',
+        type: 'BPKB',
+        status: 'approved',
+        fileUrl: '/documents/bpkb-v3.pdf',
+        uploadedAt: '2024-03-10T14:00:00Z',
+        verifiedAt: '2024-03-11T16:45:00Z',
+        verifiedBy: 'admin1'
+      }
+    ],
+    photos: {
+      exterior: '/images/vehicles/v3-exterior.jpg',
+      interior: '/images/vehicles/v3-interior.jpg'
+    },
+    lastServiceDate: '2024-03-15',
+    nextServiceDate: '2024-09-15',
+    mileage: 28000,
+    createdAt: '2024-03-10T14:00:00Z',
+    updatedAt: '2024-03-15T10:20:00Z',
+    createdBy: 'admin1'
+  },
+  {
+    id: 'v4',
+    name: 'Innova Reborn',
+    plateNumber: 'BK 3456 GH',
+    capacity: 8,
+    type: 'MPV',
+    status: 'maintenance',
+    brand: 'Toyota',
+    model: 'Innova',
+    year: 2022,
+    color: 'Silver',
+    vin: 'MHFM1BA3AKJ345678',
+    engineNumber: '2TR-FE-345678',
+    fuelType: 'bensin',
+    transmission: 'automatic',
+    stnkNumber: 'STNK-003456789012',
+    stnkExpiryDate: '2029-01-10',
+    stnkOwnerName: 'PT Ridewise Transport',
+    documents: [
+      {
+        id: 'doc-v4-stnk',
+        type: 'STNK',
+        status: 'approved',
+        fileUrl: '/documents/stnk-v4.pdf',
+        expiryDate: '2029-01-10',
+        uploadedAt: '2024-04-01T11:30:00Z',
+        verifiedAt: '2024-04-02T13:20:00Z',
+        verifiedBy: 'admin1'
+      }
+    ],
+    photos: {
+      exterior: '/images/vehicles/v4-exterior.jpg',
+      dashboard: '/images/vehicles/v4-dashboard.jpg'
+    },
+    lastServiceDate: '2024-04-05',
+    nextServiceDate: '2024-10-05',
+    mileage: 15000,
+    createdAt: '2024-04-01T11:30:00Z',
+    updatedAt: '2024-04-05T09:15:00Z',
+    createdBy: 'admin1'
+  },
+  {
+    id: 'v5',
+    name: 'Hiace Premio',
+    plateNumber: 'BK 7890 IJ',
+    capacity: 12,
+    type: 'Minibus',
+    status: 'active',
+    brand: 'Toyota',
+    model: 'Hiace',
+    year: 2018,
+    color: 'Merah',
+    vin: 'MHKM1BA1AKJ901234',
+    engineNumber: '1TR901234',
+    fuelType: 'diesel',
+    transmission: 'manual',
+    stnkNumber: 'STNK-007890123456',
+    stnkExpiryDate: '2025-11-25',
+    stnkOwnerName: 'PT Ridewise Transport',
+    documents: [
+      {
+        id: 'doc-v5-stnk',
+        type: 'STNK',
+        status: 'approved',
+        fileUrl: '/documents/stnk-v5.pdf',
+        expiryDate: '2025-11-25',
+        uploadedAt: '2024-01-20T12:00:00Z',
+        verifiedAt: '2024-01-21T15:10:00Z',
+        verifiedBy: 'admin1'
+      },
+      {
+        id: 'doc-v5-service',
+        type: 'SERVICE_RECORD',
+        status: 'approved',
+        fileUrl: '/documents/service-v5.pdf',
+        uploadedAt: '2024-01-20T12:00:00Z',
+        verifiedAt: '2024-01-21T15:10:00Z',
+        verifiedBy: 'admin1'
+      }
+    ],
+    photos: {
+      exterior: '/images/vehicles/v5-exterior.jpg',
+      interior: '/images/vehicles/v5-interior.jpg',
+      dashboard: '/images/vehicles/v5-dashboard.jpg'
+    },
+    lastServiceDate: '2024-01-25',
+    nextServiceDate: '2024-07-25',
+    mileage: 65000,
+    createdAt: '2024-01-20T12:00:00Z',
+    updatedAt: '2024-01-25T08:45:00Z',
+    createdBy: 'admin1'
+  }
 ];
 
 // Helper: today, tomorrow, day after
@@ -142,418 +582,5 @@ export const generateSeats = (vehicleId: string): { seatNumber: number; row: num
 };
 
 export const formatRupiah = (amount: number): string => {
-  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+  return formatPrice(amount, 'IDR');
 };
-
-// ========== Pickup Points Data ==========
-
-export const dummyPickupPoints: PickupPoint[] = [
-  // Rayon A (Dalam Kota)
-  {
-    id: 'pk1',
-    code: 'PK-A-001',
-    name: 'Terminal Hermes',
-    rayon: 'A',
-    address: 'Jl. Gatot Subroto No. 1',
-    city: 'Medan',
-    district: 'Medan Helvetia',
-    lat: 3.5952,
-    lng: 98.6722,
-    phone: '061-4516543',
-    contactPerson: 'Pak Hendra',
-    isActive: true,
-    description: 'Terminal utama di pusat kota',
-    estimatedWaitTime: 10,
-    maxCapacity: 50,
-    facilities: ['WiFi', 'Toilet', 'Mushola', 'Kantin'],
-    operatingHours: { open: '05:00', close: '22:00' },
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-    createdBy: 'admin1',
-    updatedBy: 'admin1',
-  },
-  {
-    id: 'pk2',
-    code: 'PK-A-002',
-    name: 'Simpang Pos',
-    rayon: 'A',
-    address: 'Jl. Sisingamangaraja No. 245',
-    city: 'Medan',
-    district: 'Medan Sunggal',
-    lat: 3.5880,
-    lng: 98.6850,
-    phone: '061-7863425',
-    contactPerson: 'Ibu Siti',
-    isActive: true,
-    description: 'Titik jemput di area Simpang Pos',
-    estimatedWaitTime: 5,
-    maxCapacity: 30,
-    facilities: ['WiFi', 'Toilet'],
-    operatingHours: { open: '06:00', close: '21:00' },
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-    createdBy: 'admin1',
-    updatedBy: 'admin1',
-  },
-  {
-    id: 'pk3',
-    code: 'PK-A-003',
-    name: 'Tembung',
-    rayon: 'A',
-    address: 'Jl. Jamin Ginting KM 10',
-    city: 'Medan',
-    district: 'Medan Kota',
-    lat: 3.5750,
-    lng: 98.7200,
-    phone: '061-5483729',
-    contactPerson: 'Pak Budi',
-    isActive: true,
-    description: 'Titik jemput Tembung',
-    estimatedWaitTime: 8,
-    maxCapacity: 25,
-    facilities: ['Toilet', 'Mushola'],
-    operatingHours: { open: '05:30', close: '21:30' },
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-    createdBy: 'admin1',
-    updatedBy: 'admin1',
-  },
-  {
-    id: 'pk4',
-    code: 'PK-A-004',
-    name: 'Batang Kuis',
-    rayon: 'A',
-    address: 'Jl. Batang Kuis No. 567',
-    city: 'Medan',
-    district: 'Batang Kuis',
-    lat: 3.5400,
-    lng: 98.7600,
-    phone: '061-6234521',
-    contactPerson: 'Pak Andi',
-    isActive: true,
-    description: 'Terminal Batang Kuis',
-    estimatedWaitTime: 7,
-    maxCapacity: 35,
-    facilities: ['WiFi', 'Toilet', 'Kantin', 'Mushola'],
-    operatingHours: { open: '06:00', close: '20:00' },
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-    createdBy: 'admin1',
-    updatedBy: 'admin1',
-  },
-  {
-    id: 'pk5',
-    code: 'PK-A-005',
-    name: 'Bandara Kualanamu',
-    rayon: 'A',
-    address: 'Jl. Bandara Kualanamu KM 38',
-    city: 'Medan',
-    district: 'Deli Serdang',
-    lat: 3.6422,
-    lng: 98.8853,
-    phone: '061-6565656',
-    contactPerson: 'Customer Service',
-    isActive: true,
-    description: 'Terminal Bandara Internasional Kualanamu',
-    estimatedWaitTime: 15,
-    maxCapacity: 100,
-    facilities: ['WiFi', 'Toilet', 'Mushola', 'Kantin', 'Lounge'],
-    operatingHours: { open: '04:00', close: '23:59' },
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-    createdBy: 'admin1',
-    updatedBy: 'admin1',
-  },
-  // Rayon B (Antar Kota Dekat)
-  {
-    id: 'pk6',
-    code: 'PK-B-001',
-    name: 'Terminal Amplas',
-    rayon: 'B',
-    address: 'Jln. Amplas No. 100',
-    city: 'Medan',
-    district: 'Medan Amplas',
-    lat: 3.5570,
-    lng: 98.6950,
-    phone: '061-7541263',
-    contactPerson: 'Pak Ridho',
-    isActive: true,
-    description: 'Terminal Amplas untuk rute regional',
-    estimatedWaitTime: 10,
-    maxCapacity: 40,
-    facilities: ['WiFi', 'Toilet', 'Mushola'],
-    operatingHours: { open: '05:00', close: '21:00' },
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-    createdBy: 'admin1',
-    updatedBy: 'admin1',
-  },
-  {
-    id: 'pk7',
-    code: 'PK-B-002',
-    name: 'Lubuk Pakam',
-    rayon: 'B',
-    address: 'Jln. Medan-Tebing Tinggi KM 45',
-    city: 'Lubuk Pakam',
-    district: 'Deli Serdang',
-    lat: 3.5550,
-    lng: 98.8570,
-    phone: '0621-24681',
-    contactPerson: 'Ibu Lina',
-    isActive: true,
-    description: 'Titik jemput Lubuk Pakam',
-    estimatedWaitTime: 8,
-    maxCapacity: 20,
-    facilities: ['Toilet'],
-    operatingHours: { open: '06:00', close: '20:00' },
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-    createdBy: 'admin1',
-    updatedBy: 'admin1',
-  },
-  {
-    id: 'pk8',
-    code: 'PK-B-003',
-    name: 'Tebing Tinggi',
-    rayon: 'B',
-    address: 'Jln. Ahmad Yani No. 78',
-    city: 'Tebing Tinggi',
-    district: 'Tebing Tinggi',
-    lat: 3.3283,
-    lng: 99.1627,
-    phone: '0623-325081',
-    contactPerson: 'Pak Tarno',
-    isActive: true,
-    description: 'Terminal Tebing Tinggi',
-    estimatedWaitTime: 10,
-    maxCapacity: 45,
-    facilities: ['WiFi', 'Toilet', 'Mushola', 'Kantin'],
-    operatingHours: { open: '05:30', close: '20:30' },
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-    createdBy: 'admin1',
-    updatedBy: 'admin1',
-  },
-  {
-    id: 'pk9',
-    code: 'PK-B-004',
-    name: 'Pancur Batu',
-    rayon: 'B',
-    address: 'Jln. Medan-Berastagi KM 30',
-    city: 'Pancur Batu',
-    district: 'Deli Serdang',
-    lat: 3.4700,
-    lng: 98.5700,
-    phone: '061-8765432',
-    contactPerson: 'Pak Syaiful',
-    isActive: true,
-    description: 'Titik istirahat Pancur Batu',
-    estimatedWaitTime: 5,
-    maxCapacity: 15,
-    facilities: ['Toilet', 'Warung'],
-    operatingHours: { open: '06:00', close: '19:00' },
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-    createdBy: 'admin1',
-    updatedBy: 'admin1',
-  },
-  // Rayon C & D
-  {
-    id: 'pk10',
-    code: 'PK-C-001',
-    name: 'Pematang Siantar',
-    rayon: 'C',
-    address: 'Jln. Merdeka No. 123',
-    city: 'Pematang Siantar',
-    district: 'Pematang Siantar',
-    lat: 2.9540,
-    lng: 99.0478,
-    phone: '0621-51234',
-    contactPerson: 'Ibu Yuni',
-    isActive: true,
-    description: 'Terminal Pematang Siantar',
-    estimatedWaitTime: 10,
-    maxCapacity: 50,
-    facilities: ['WiFi', 'Toilet', 'Mushola', 'Kantin'],
-    operatingHours: { open: '05:00', close: '20:00' },
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-    createdBy: 'admin1',
-    updatedBy: 'admin1',
-  },
-  {
-    id: 'pk11',
-    code: 'PK-D-001',
-    name: 'Padang Sidempuan',
-    rayon: 'D',
-    address: 'Jln. Sudirman No. 456',
-    city: 'Padang Sidempuan',
-    district: 'Padang Sidempuan',
-    lat: 1.3790,
-    lng: 99.2718,
-    phone: '0634-21234',
-    contactPerson: 'Pak Muhammad',
-    isActive: true,
-    description: 'Terminal Padang Sidempuan',
-    estimatedWaitTime: 15,
-    maxCapacity: 60,
-    facilities: ['WiFi', 'Toilet', 'Mushola', 'Kantin', 'Hotel'],
-    operatingHours: { open: '05:00', close: '21:00' },
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-    createdBy: 'admin1',
-    updatedBy: 'admin1',
-  },
-];
-
-// ========== Rayons Data ==========
-
-export const dummyRayons: Rayon[] = [
-  {
-    id: 'rayon-a',
-    code: 'A',
-    name: 'Rayon A - Dalam Kota',
-    label: 'Dalam Kota (Medan)',
-    description: 'Area dalam kota Medan dan sekitarnya',
-    pricePerMeter: 2,
-    coverage: 'Medan dan radius 40 km',
-    pickupPointCount: 5,
-    isActive: true,
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-  },
-  {
-    id: 'rayon-b',
-    code: 'B',
-    name: 'Rayon B - Antar Kota Dekat',
-    label: 'Antar Kota Dekat',
-    description: 'Area antar kota dengan jarak dekat (40-100 km)',
-    pricePerMeter: 1.5,
-    coverage: 'Tebing Tinggi, Lubuk Pakam, Deli Serdang',
-    pickupPointCount: 4,
-    isActive: true,
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-  },
-  {
-    id: 'rayon-c',
-    code: 'C',
-    name: 'Rayon C - Antar Kota Sedang',
-    label: 'Antar Kota Sedang',
-    description: 'Area antar kota dengan jarak sedang (100-250 km)',
-    pricePerMeter: 1.2,
-    coverage: 'Pematang Siantar, Sibolga, Rantau Prapat',
-    pickupPointCount: 1,
-    isActive: true,
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-  },
-  {
-    id: 'rayon-d',
-    code: 'D',
-    name: 'Rayon D - Antar Kota Jauh',
-    label: 'Antar Kota Jauh',
-    description: 'Area antar kota dengan jarak jauh (>250 km)',
-    pricePerMeter: 1,
-    coverage: 'Padang Sidempuan, Kisaran, Jambi',
-    pickupPointCount: 1,
-    isActive: true,
-    createdAt: '2026-01-01T08:00:00Z',
-    updatedAt: '2026-04-05T10:00:00Z',
-  },
-];
-
-// ========== Route Sequences Data ==========
-
-export const dummyRouteSequences: RouteSequence[] = [
-  // Route 1: Hermes → Kualanamu
-  { id: 'rs1', routeId: 'r1', pickupPointId: 'pk1', sequenceOrder: 1, estimatedTimeFromPrevious: 0, estimatedDistanceFromPrevious: 0, cumulativeTime: 0, cumulativeDistance: 0, price: 76000 },
-  { id: 'rs2', routeId: 'r1', pickupPointId: 'pk2', sequenceOrder: 2, estimatedTimeFromPrevious: 12, estimatedDistanceFromPrevious: 10000, cumulativeTime: 12, cumulativeDistance: 10000, price: 56000 },
-  { id: 'rs3', routeId: 'r1', pickupPointId: 'pk3', sequenceOrder: 3, estimatedTimeFromPrevious: 15, estimatedDistanceFromPrevious: 8000, cumulativeTime: 27, cumulativeDistance: 18000, price: 40000 },
-  { id: 'rs4', routeId: 'r1', pickupPointId: 'pk4', sequenceOrder: 4, estimatedTimeFromPrevious: 20, estimatedDistanceFromPrevious: 12000, cumulativeTime: 47, cumulativeDistance: 30000, price: 16000 },
-  { id: 'rs5', routeId: 'r1', pickupPointId: 'pk5', sequenceOrder: 5, estimatedTimeFromPrevious: 25, estimatedDistanceFromPrevious: 8000, cumulativeTime: 72, cumulativeDistance: 38000, price: 0 },
-  // Route 2: Amplas → Parapat
-  { id: 'rs6', routeId: 'r2', pickupPointId: 'pk6', sequenceOrder: 1, estimatedTimeFromPrevious: 0, estimatedDistanceFromPrevious: 0, cumulativeTime: 0, cumulativeDistance: 0, price: 262500 },
-  { id: 'rs7', routeId: 'r2', pickupPointId: 'pk7', sequenceOrder: 2, estimatedTimeFromPrevious: 60, estimatedDistanceFromPrevious: 25000, cumulativeTime: 60, cumulativeDistance: 25000, price: 225000 },
-  { id: 'rs8', routeId: 'r2', pickupPointId: 'pk8', sequenceOrder: 3, estimatedTimeFromPrevious: 90, estimatedDistanceFromPrevious: 50000, cumulativeTime: 150, cumulativeDistance: 75000, price: 150000 },
-];
-
-// ========== Activity Logs Data ==========
-
-export const dummyActivityLogs: ActivityLog[] = [
-  {
-    id: 'log1',
-    entityType: 'pickup_point',
-    entityId: 'pk1',
-    entityName: 'Terminal Hermes',
-    action: 'create',
-    changes: { name: { oldValue: null, newValue: 'Terminal Hermes' }, rayon: { oldValue: null, newValue: 'A' } },
-    userId: 'admin1',
-    userName: 'Administrator',
-    timestamp: '2026-01-01T08:00:00Z',
-    ipAddress: '192.168.1.1',
-    details: 'Pickup point created successfully',
-  },
-  {
-    id: 'log2',
-    entityType: 'pickup_point',
-    entityId: 'pk1',
-    entityName: 'Terminal Hermes',
-    action: 'update',
-    changes: { contactPerson: { oldValue: 'Pak Hendra', newValue: 'Pak Hendra Wijaya' }, phone: { oldValue: '061-4516543', newValue: '061-4516543' } },
-    userId: 'admin1',
-    userName: 'Administrator',
-    timestamp: '2026-04-01T10:30:00Z',
-    ipAddress: '192.168.1.100',
-    details: 'Contact person name updated',
-  },
-  {
-    id: 'log3',
-    entityType: 'rayon',
-    entityId: 'rayon-a',
-    entityName: 'Rayon A - Dalam Kota',
-    action: 'update',
-    changes: { pickupPointCount: { oldValue: 4, newValue: 5 } },
-    userId: 'admin1',
-    userName: 'Administrator',
-    timestamp: '2026-04-02T14:00:00Z',
-    ipAddress: '192.168.1.100',
-    details: 'Pickup point count updated',
-  },
-  {
-    id: 'log4',
-    entityType: 'pickup_point',
-    entityId: 'pk2',
-    entityName: 'Simpang Pos',
-    action: 'activate',
-    changes: { isActive: { oldValue: false, newValue: true } },
-    userId: 'admin1',
-    userName: 'Administrator',
-    timestamp: '2026-04-03T09:15:00Z',
-    ipAddress: '192.168.1.100',
-    details: 'Pickup point activated after maintenance',
-  },
-];
-
-export const generateNewActivityLog = (
-  entityType: ActivityLog['entityType'],
-  entityId: string,
-  entityName: string,
-  action: ActivityLog['action'],
-  changes: Record<string, { oldValue: any; newValue: any }>,
-  userId: string,
-  userName: string,
-  details?: string,
-): ActivityLog => ({
-  id: `log${Date.now()}`,
-  entityType,
-  entityId,
-  entityName,
-  action,
-  changes,
-  userId,
-  userName,
-  timestamp: new Date().toISOString(),
-  ipAddress: '192.168.1.100', // In real app, get from server
-  details,
-});

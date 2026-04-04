@@ -1,9 +1,11 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { Booking } from '@/types/shuttle';
-import { formatRupiah } from '@/data/dummy';
+import { formatPrice } from '@/lib/pricing';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, Armchair, Bus } from 'lucide-react';
+import { useShuttle } from '@/contexts/ShuttleContext';
 
 interface ETicketProps {
   booking: Booking;
@@ -11,6 +13,22 @@ interface ETicketProps {
 }
 
 export const ETicket = ({ booking, compact = false }: ETicketProps) => {
+  const { schedules } = useShuttle();
+  const schedule = schedules.find(s => s.id === booking.scheduleId);
+  const tripStatus = schedule?.status || 'scheduled';
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      scheduled: { label: 'Terjadwal', variant: 'secondary' as const },
+      boarding: { label: 'Boarding', variant: 'default' as const },
+      departed: { label: 'Berangkat', variant: 'outline' as const },
+      arrived: { label: 'Tiba', variant: 'destructive' as const },
+      cancelled: { label: 'Dibatalkan', variant: 'destructive' as const },
+    };
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.scheduled;
+    return <Badge variant={config.variant} className="text-xs">{config.label}</Badge>;
+  };
+
   const qrData = JSON.stringify({
     id: booking.id,
     scheduleId: booking.scheduleId,
@@ -24,12 +42,15 @@ export const ETicket = ({ booking, compact = false }: ETicketProps) => {
         <CardContent className="p-4">
           <div className="flex justify-between items-start">
             <div className="flex-1 space-y-2">
-              <h3 className="font-bold text-sm">{booking.routeName}</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-sm">{booking.routeName}</h3>
+                {getStatusBadge(tripStatus)}
+              </div>
               <div className="flex gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {booking.departureTime}</span>
                 <span className="flex items-center gap-1"><Armchair className="h-3 w-3" /> #{booking.seatNumber}</span>
               </div>
-              <p className="font-bold text-primary text-sm">{formatRupiah(booking.price)}</p>
+              <p className="font-bold text-primary text-sm">{formatPrice(booking.price)}</p>
             </div>
             <QRCodeSVG value={qrData} size={56} level="M" />
           </div>
@@ -50,9 +71,12 @@ export const ETicket = ({ booking, compact = false }: ETicketProps) => {
               <p className="text-xs opacity-80">E-Ticket</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-xs opacity-80">ID Booking</p>
-            <p className="font-mono text-sm font-bold">{booking.id.toUpperCase()}</p>
+          <div className="text-right flex items-center gap-2">
+            {getStatusBadge(tripStatus)}
+            <div>
+              <p className="text-xs opacity-80">ID Booking</p>
+              <p className="font-mono text-sm font-bold">{booking.id.toUpperCase()}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -102,7 +126,7 @@ export const ETicket = ({ booking, compact = false }: ETicketProps) => {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-muted-foreground">Total Harga</p>
-            <p className="text-2xl font-bold text-primary">{formatRupiah(booking.price)}</p>
+            <p className="text-2xl font-bold text-primary">{formatPrice(booking.price)}</p>
             {booking.paymentStatus === 'paid' && (
               <span className="text-xs text-success font-medium">✓ Lunas</span>
             )}

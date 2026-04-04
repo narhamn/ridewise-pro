@@ -26,16 +26,15 @@ import DriverDashboard from "./pages/driver/DriverDashboard";
 import DriverTripDetail from "./pages/driver/DriverTripDetail";
 import DriverTrips from "./pages/driver/DriverTrips";
 import DriverTracking from "./pages/driver/DriverTracking";
+import DriverProfile from "./pages/driver/DriverProfile";
 
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminRoutes from "./pages/admin/AdminRoutes";
-import AdminPickupPoints from "./pages/admin/AdminPickupPoints";
-import AdminRayons from "./pages/admin/AdminRayons";
-import AdminRouteManagement from "./pages/admin/AdminRouteManagement";
 
-import AdminDrivers from "./pages/admin/AdminDrivers";
+
+import AdminDrivers from "./pages/admin/AdminDriverManager";
 import AdminVehicles from "./pages/admin/AdminVehicles";
 
 import AdminBookings from "./pages/admin/AdminBookings";
@@ -43,17 +42,25 @@ import AdminReports from "./pages/admin/AdminReports";
 import AdminTracking from "./pages/admin/AdminTracking";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminPaymentSettings from "./pages/admin/AdminPaymentSettings";
+import AdminTicketDetail from "./pages/admin/AdminTicketDetail";
+import AdminDriverVerification from "./pages/admin/AdminDriverManager";
+import DriverRegister from "./pages/driver/DriverRegister";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <ShuttleProvider>
-        <NotificationProvider>
+      <NotificationProvider>
+        <ShuttleProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
             <Routes>
               <Route path="/" element={<Index />} />
 
@@ -72,11 +79,13 @@ const App = () => (
 
               {/* Driver */}
               <Route path="/driver/login" element={<DriverLogin />} />
+              <Route path="/driver/register" element={<DriverRegister />} />
               <Route path="/driver" element={<DriverLayout />}>
                 <Route index element={<DriverDashboard />} />
                 <Route path="trips" element={<DriverTrips />} />
                 <Route path="trip/:scheduleId" element={<DriverTripDetail />} />
                 <Route path="tracking" element={<DriverTracking />} />
+                <Route path="profile" element={<DriverProfile />} />
               </Route>
 
               {/* Admin */}
@@ -84,9 +93,6 @@ const App = () => (
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="routes" element={<AdminRoutes />} />
-                <Route path="route-management" element={<AdminRouteManagement />} />
-                <Route path="pickup-points" element={<AdminPickupPoints />} />
-                <Route path="rayons" element={<AdminRayons />} />
                 
                 <Route path="drivers" element={<AdminDrivers />} />
                 <Route path="vehicles" element={<AdminVehicles />} />
@@ -96,13 +102,15 @@ const App = () => (
                 <Route path="tracking" element={<AdminTracking />} />
                 <Route path="analytics" element={<AdminAnalytics />} />
                 <Route path="payment-settings" element={<AdminPaymentSettings />} />
+                <Route path="ticket/:ticketId" element={<AdminTicketDetail />} />
+                <Route path="verifications" element={<AdminDriverVerification />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
-        </NotificationProvider>
-      </ShuttleProvider>
+        </ShuttleProvider>
+      </NotificationProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
