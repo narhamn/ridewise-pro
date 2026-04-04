@@ -94,6 +94,7 @@ export interface Booking {
   departureTime: string;
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod | null;
+  bookingType: 'scheduled' | 'realtime';
 }
 
 export interface TripDetail {
