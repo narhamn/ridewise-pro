@@ -132,7 +132,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     <ShuttleContext.Provider value={{
       currentUser, login, logout,
       routes, routePoints, schedules, drivers, vehicles, bookings, rayonPricing, rideRequests,
-      addBooking, updateScheduleStatus, addRideRequest, acceptRideRequest, rejectRideRequest,
+      addBooking, updateScheduleStatus, addRideRequest, acceptRideRequest, rejectRideRequest, checkInPassenger,
       recalcRoutePointPrices,
       setRoutes, setRoutePoints, setSchedules, setDrivers, setVehicles, setBookings, setRayonPricing,
     }}>
