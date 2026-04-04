@@ -41,6 +41,7 @@ const AdminDashboard = () => {
         const lng = baseLng + (Math.random() - 0.5) * 0.1;
         
         updateDriverLocation(driver.id, {
+          driverId: driver.id,
           latitude: lat,
           longitude: lng,
           speed: Math.random() * 60,
