@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { User, UserRole, Booking, Schedule, Route, RoutePoint, Driver, Vehicle } from '@/types/shuttle';
-import { dummyRoutes, dummyRoutePoints, dummySchedules, dummyDrivers, dummyVehicles, dummyBookings } from '@/data/dummy';
+import { User, UserRole, Booking, Schedule, Route, RoutePoint, Driver, Vehicle, RayonPricing } from '@/types/shuttle';
+import { dummyRoutes, dummyRoutePoints, dummySchedules, dummyDrivers, dummyVehicles, dummyBookings, defaultRayonPricing } from '@/data/dummy';
 
 interface ShuttleContextType {
   currentUser: User | null;
@@ -12,6 +12,7 @@ interface ShuttleContextType {
   drivers: Driver[];
   vehicles: Vehicle[];
   bookings: Booking[];
+  rayonPricing: RayonPricing[];
   addBooking: (booking: Booking) => void;
   updateScheduleStatus: (scheduleId: string, status: Schedule['status']) => void;
   setRoutes: React.Dispatch<React.SetStateAction<Route[]>>;
@@ -20,6 +21,8 @@ interface ShuttleContextType {
   setDrivers: React.Dispatch<React.SetStateAction<Driver[]>>;
   setVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
   setBookings: React.Dispatch<React.SetStateAction<Booking[]>>;
+  setRayonPricing: React.Dispatch<React.SetStateAction<RayonPricing[]>>;
+  recalcRoutePointPrices: (routeId: string, pricePerMeter: number) => void;
 }
 
 const ShuttleContext = createContext<ShuttleContextType | undefined>(undefined);
@@ -32,6 +35,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   const [drivers, setDrivers] = useState<Driver[]>(dummyDrivers);
   const [vehicles, setVehicles] = useState<Vehicle[]>(dummyVehicles);
   const [bookings, setBookings] = useState<Booking[]>(dummyBookings);
+  const [rayonPricing, setRayonPricing] = useState<RayonPricing[]>(defaultRayonPricing);
 
   const login = (email: string, _password: string, role: UserRole): boolean => {
     if (role === 'customer') {
@@ -57,12 +61,32 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, status } : s));
   };
 
+  const recalcRoutePointPrices = (routeId: string, pricePerMeter: number) => {
+    setRoutePoints(prev => {
+      const routePts = prev.filter(p => p.routeId === routeId).sort((a, b) => a.order - b.order);
+      const totalDist = routePts.length > 0 ? routePts[routePts.length - 1].cumulativeDistance : 0;
+      const updated = routePts.map(p => ({
+        ...p,
+        distanceToDestination: totalDist - p.cumulativeDistance,
+        price: Math.round((totalDist - p.cumulativeDistance) * pricePerMeter),
+      }));
+      const others = prev.filter(p => p.routeId !== routeId);
+      return [...others, ...updated];
+    });
+    setRoutes(prev => prev.map(r => {
+      if (r.id !== routeId) return r;
+      const routePts = routePoints.filter(p => p.routeId === routeId).sort((a, b) => a.order - b.order);
+      const totalDist = routePts.length > 0 ? routePts[routePts.length - 1].cumulativeDistance : 0;
+      return { ...r, pricePerMeter, price: Math.round(totalDist * pricePerMeter) };
+    }));
+  };
+
   return (
     <ShuttleContext.Provider value={{
       currentUser, login, logout,
-      routes, routePoints, schedules, drivers, vehicles, bookings,
-      addBooking, updateScheduleStatus,
-      setRoutes, setRoutePoints, setSchedules, setDrivers, setVehicles, setBookings,
+      routes, routePoints, schedules, drivers, vehicles, bookings, rayonPricing,
+      addBooking, updateScheduleStatus, recalcRoutePointPrices,
+      setRoutes, setRoutePoints, setSchedules, setDrivers, setVehicles, setBookings, setRayonPricing,
     }}>
       {children}
     </ShuttleContext.Provider>

@@ -85,7 +85,7 @@ const CustomerBookingNew = () => {
           <p><span className="text-muted-foreground">Rute:</span> {route.name}</p>
           <p><span className="text-muted-foreground">Waktu:</span> {schedule.departureTime}</p>
           <p><span className="text-muted-foreground">Kendaraan:</span> {vehicle.name} ({vehicle.plateNumber})</p>
-          <p><span className="text-muted-foreground">Harga mulai:</span> <span className="font-bold text-primary">{formatRupiah(points.length > 1 ? points[1]?.price || 0 : route.price)} — {formatRupiah(route.price)}</span></p>
+          <p><span className="text-muted-foreground">Harga mulai:</span> <span className="font-bold text-primary">{formatRupiah(points.filter(p => p.distanceToDestination > 0).sort((a, b) => a.price - b.price)[0]?.price || route.price)} — {formatRupiah(route.price)}</span></p>
         </CardContent>
       </Card>
 
@@ -96,8 +96,8 @@ const CustomerBookingNew = () => {
           <Select value={selectedPickup} onValueChange={setSelectedPickup}>
             <SelectTrigger><SelectValue placeholder="Pilih titik jemput" /></SelectTrigger>
             <SelectContent>
-              {points.filter(p => p.order > 1).map(p => (
-                <SelectItem key={p.id} value={p.id}>{p.code} — {p.name} ({formatRupiah(p.price)})</SelectItem>
+              {points.filter(p => p.distanceToDestination > 0).map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.code} — {p.name} · {(p.distanceToDestination / 1000).toFixed(0)} km ke tujuan · {formatRupiah(p.price)}</SelectItem>
               ))}
             </SelectContent>
           </Select>

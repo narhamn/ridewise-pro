@@ -34,7 +34,7 @@ const CustomerRouteDetail = () => {
         <p className="text-sm opacity-80">{(route.distanceMeters / 1000).toFixed(0)} km · {formatRupiah(route.price)}</p>
       </div>
 
-      {/* Pickup Points with price */}
+      {/* Pickup Points with price based on distance to destination */}
       <div>
         <h3 className="font-semibold mb-2 flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Titik Penjemputan</h3>
         <div className="space-y-2">
@@ -45,12 +45,12 @@ const CustomerRouteDetail = () => {
                 <span className="text-sm">{p.name}</span>
               </div>
               <div className="text-right text-sm">
-                {p.order === 1 ? (
-                  <span className="text-muted-foreground">Asal</span>
+                {p.distanceToDestination === 0 ? (
+                  <span className="text-muted-foreground">Tujuan</span>
                 ) : (
                   <>
                     <span className="font-semibold text-primary">{formatRupiah(p.price)}</span>
-                    <span className="text-muted-foreground ml-1 text-xs">({(p.cumulativeDistance / 1000).toFixed(0)} km)</span>
+                    <span className="text-muted-foreground ml-1 text-xs">({(p.distanceToDestination / 1000).toFixed(0)} km ke tujuan)</span>
                   </>
                 )}
               </div>

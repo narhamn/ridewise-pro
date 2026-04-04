@@ -47,7 +47,14 @@ export interface RoutePoint {
   lng: number;
   distanceFromPrevious: number;
   cumulativeDistance: number;
+  distanceToDestination: number;
   price: number;
+}
+
+export interface RayonPricing {
+  rayon: 'A' | 'B' | 'C' | 'D';
+  pricePerMeter: number;
+  label: string;
 }
 
 export interface Schedule {
