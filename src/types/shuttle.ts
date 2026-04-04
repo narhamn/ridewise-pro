@@ -124,6 +124,20 @@ export interface Notification {
   role: UserRole;
 }
 
+export interface RideRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  scheduleId: string;
+  routeId: string;
+  pickupPointId: string;
+  pickupPointName: string;
+  seatNumber: number;
+  price: number;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: string;
+}
+
 export interface PaymentConfig {
   provider: 'midtrans' | 'xendit';
   serverKey: string;

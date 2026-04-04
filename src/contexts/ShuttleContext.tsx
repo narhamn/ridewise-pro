@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { User, UserRole, Booking, Schedule, Route, RoutePoint, Driver, Vehicle, RayonPricing } from '@/types/shuttle';
+import { User, UserRole, Booking, Schedule, Route, RoutePoint, Driver, Vehicle, RayonPricing, RideRequest } from '@/types/shuttle';
 import { dummyRoutes, dummyRoutePoints, dummySchedules, dummyDrivers, dummyVehicles, dummyBookings, defaultRayonPricing } from '@/data/dummy';
 
 interface ShuttleContextType {
@@ -13,8 +13,12 @@ interface ShuttleContextType {
   vehicles: Vehicle[];
   bookings: Booking[];
   rayonPricing: RayonPricing[];
+  rideRequests: RideRequest[];
   addBooking: (booking: Booking) => void;
   updateScheduleStatus: (scheduleId: string, status: Schedule['status']) => void;
+  addRideRequest: (request: RideRequest) => void;
+  acceptRideRequest: (requestId: string) => void;
+  rejectRideRequest: (requestId: string) => void;
   setRoutes: React.Dispatch<React.SetStateAction<Route[]>>;
   setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
   setSchedules: React.Dispatch<React.SetStateAction<Schedule[]>>;
@@ -36,6 +40,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   const [vehicles, setVehicles] = useState<Vehicle[]>(dummyVehicles);
   const [bookings, setBookings] = useState<Booking[]>(dummyBookings);
   const [rayonPricing, setRayonPricing] = useState<RayonPricing[]>(defaultRayonPricing);
+  const [rideRequests, setRideRequests] = useState<RideRequest[]>([]);
 
   const login = (email: string, _password: string, role: UserRole): boolean => {
     if (role === 'customer') {
@@ -61,6 +66,43 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, status } : s));
   };
 
+  const addRideRequest = (request: RideRequest) => {
+    setRideRequests(prev => [...prev, request]);
+  };
+
+  const acceptRideRequest = (requestId: string) => {
+    setRideRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'accepted' as const } : r));
+    const request = rideRequests.find(r => r.id === requestId);
+    if (!request) return;
+    const schedule = schedules.find(s => s.id === request.scheduleId);
+    const route = routes.find(r => r.id === request.routeId);
+    if (!schedule || !route) return;
+
+    const newBooking: Booking = {
+      id: `b${Date.now()}`,
+      userId: request.userId,
+      userName: request.userName,
+      scheduleId: request.scheduleId,
+      routeId: request.routeId,
+      routeName: route.name,
+      pickupPointId: request.pickupPointId,
+      pickupPointName: request.pickupPointName,
+      seatNumber: request.seatNumber,
+      price: request.price,
+      status: 'confirmed',
+      bookingDate: new Date().toISOString().split('T')[0],
+      departureTime: schedule.departureTime,
+      paymentStatus: 'paid',
+      paymentMethod: 'qris',
+      bookingType: 'realtime',
+    };
+    addBooking(newBooking);
+  };
+
+  const rejectRideRequest = (requestId: string) => {
+    setRideRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'rejected' as const } : r));
+  };
+
   const recalcRoutePointPrices = (routeId: string, pricePerMeter: number) => {
     setRoutePoints(prev => {
       const routePts = prev.filter(p => p.routeId === routeId).sort((a, b) => a.order - b.order);
@@ -84,8 +126,9 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   return (
     <ShuttleContext.Provider value={{
       currentUser, login, logout,
-      routes, routePoints, schedules, drivers, vehicles, bookings, rayonPricing,
-      addBooking, updateScheduleStatus, recalcRoutePointPrices,
+      routes, routePoints, schedules, drivers, vehicles, bookings, rayonPricing, rideRequests,
+      addBooking, updateScheduleStatus, addRideRequest, acceptRideRequest, rejectRideRequest,
+      recalcRoutePointPrices,
       setRoutes, setRoutePoints, setSchedules, setDrivers, setVehicles, setBookings, setRayonPricing,
     }}>
       {children}

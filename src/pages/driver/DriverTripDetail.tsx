@@ -7,14 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, User, MapPin, QrCode, UserPlus } from 'lucide-react';
+import { ArrowLeft, User, MapPin, QrCode, UserPlus, Bell, Check, X } from 'lucide-react';
 import { generateSeats, formatRupiah } from '@/data/dummy';
 import { toast } from 'sonner';
 
 const DriverTripDetail = () => {
   const { scheduleId } = useParams();
   const navigate = useNavigate();
-  const { schedules, routes, routePoints, vehicles, bookings, addBooking, updateScheduleStatus } = useShuttle();
+  const { schedules, routes, routePoints, vehicles, bookings, addBooking, updateScheduleStatus, rideRequests, acceptRideRequest, rejectRideRequest } = useShuttle();
   const [scanOpen, setScanOpen] = useState(false);
   const [scanInput, setScanInput] = useState('');
   const [addPassengerOpen, setAddPassengerOpen] = useState(false);
@@ -146,6 +146,57 @@ const DriverTripDetail = () => {
           </Button>
         )}
       </div>
+
+      {/* Incoming Ride Requests */}
+      {(() => {
+        const pendingRequests = rideRequests.filter(r => r.scheduleId === scheduleId && r.status === 'pending');
+        if (pendingRequests.length === 0) return null;
+        return (
+          <Card className="border-orange-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Bell className="h-4 w-4 text-orange-500" />
+                Request Masuk ({pendingRequests.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {pendingRequests.map(req => (
+                <div key={req.id} className="flex items-center gap-3 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{req.userName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      <MapPin className="h-3 w-3 inline" /> {req.pickupPointName} · Kursi #{req.seatNumber} · {formatRupiah(req.price)}
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      className="bg-green-500 hover:bg-green-600 text-white h-8 px-2"
+                      onClick={() => {
+                        acceptRideRequest(req.id);
+                        toast.success(`✅ ${req.userName} diterima!`);
+                      }}
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-8 px-2"
+                      onClick={() => {
+                        rejectRideRequest(req.id);
+                        toast.info(`❌ Request ${req.userName} ditolak`);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Seat Map */}
       <Card>

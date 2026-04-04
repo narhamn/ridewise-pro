@@ -22,6 +22,20 @@ const CustomerHome = () => {
 
   return (
     <div className="p-4 space-y-6">
+      {/* Naik Sekarang CTA */}
+      <Card
+        className="cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+        onClick={() => navigate('/customer/ride-now')}
+      >
+        <CardContent className="p-4 flex items-center justify-between">
+          <div>
+            <p className="font-bold text-lg">🚐 Naik Sekarang</p>
+            <p className="text-sm opacity-80">Cari shuttle yang sedang jalan & request kursi langsung</p>
+          </div>
+          <ChevronRight className="h-6 w-6" />
+        </CardContent>
+      </Card>
+
       {/* Active Bookings */}
       {bookings.filter(b => b.status === 'confirmed').length > 0 && (
         <div>
