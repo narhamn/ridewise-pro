@@ -25,6 +25,47 @@ const DriverTripDetail = () => {
   const [selectedSeat, setSelectedSeat] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
 
+  const processTicketData = useCallback((data: string) => {
+    try {
+      const parsed = JSON.parse(data);
+      const bookingId = parsed.id;
+      const found = bookings.find(b => b.id === bookingId);
+
+      if (found && found.scheduleId === scheduleId) {
+        if (found.checkedIn) {
+          toast.warning(`⚠️ ${found.userName} sudah check-in sebelumnya (Kursi #${found.seatNumber})`);
+        } else {
+          checkInPassenger(found.id);
+          toast.success(`✅ Check-in berhasil! ${found.userName} — Kursi #${found.seatNumber}`);
+        }
+      } else if (found) {
+        toast.error('❌ Tiket valid tapi bukan untuk perjalanan ini');
+      } else {
+        toast.error('❌ Tiket tidak ditemukan');
+      }
+    } catch {
+      const found = bookings.find(b => b.id === data.trim());
+      if (found && found.scheduleId === scheduleId) {
+        if (found.checkedIn) {
+          toast.warning(`⚠️ ${found.userName} sudah check-in sebelumnya`);
+        } else {
+          checkInPassenger(found.id);
+          toast.success(`✅ Check-in berhasil! ${found.userName} — Kursi #${found.seatNumber}`);
+        }
+      } else if (found) {
+        toast.error('❌ Tiket valid tapi bukan untuk perjalanan ini');
+      } else {
+        toast.error('❌ Tiket tidak ditemukan');
+      }
+    }
+    setScanOpen(false);
+    setScanInput('');
+  }, [bookings, scheduleId, checkInPassenger]);
+
+  const handleScanSuccess = useCallback((decodedText: string) => {
+    processTicketData(decodedText);
+  }, [processTicketData]);
+
   const schedule = schedules.find(s => s.id === scheduleId);
   const route = routes.find(r => r.id === schedule?.routeId);
   const vehicle = vehicles.find(v => v.id === schedule?.vehicleId);
@@ -32,25 +73,6 @@ const DriverTripDetail = () => {
   const points = routePoints.filter(p => p.routeId === schedule?.routeId).sort((a, b) => a.order - b.order);
 
   if (!schedule || !route || !vehicle) return <div className="p-4">Data tidak ditemukan</div>;
-
-  const seats = generateSeats(vehicle.id);
-  const bookedSeats = passengers.map(p => p.seatNumber);
-  const availableSeats = seats.filter(s => !bookedSeats.includes(s.seatNumber));
-  const cols = vehicle.capacity <= 8 ? 2 : 3;
-  const canAddPassenger = schedule.status === 'boarding' || schedule.status === 'departed';
-  const checkedInCount = passengers.filter(p => p.checkedIn).length;
-
-  const handleStart = () => {
-    updateScheduleStatus(schedule.id, 'departed');
-    toast.success('Perjalanan dimulai!');
-  };
-
-  const handleFinish = () => {
-    updateScheduleStatus(schedule.id, 'arrived');
-    toast.success('Perjalanan selesai!');
-  };
-
-  const processTicketData = useCallback((data: string) => {
     try {
       const parsed = JSON.parse(data);
       const bookingId = parsed.id;
