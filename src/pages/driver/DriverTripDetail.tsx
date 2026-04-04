@@ -6,27 +6,36 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, User, MapPin, QrCode } from 'lucide-react';
-import { generateSeats } from '@/data/dummy';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, User, MapPin, QrCode, UserPlus } from 'lucide-react';
+import { generateSeats, formatRupiah } from '@/data/dummy';
 import { toast } from 'sonner';
 
 const DriverTripDetail = () => {
   const { scheduleId } = useParams();
   const navigate = useNavigate();
-  const { schedules, routes, vehicles, bookings, updateScheduleStatus } = useShuttle();
+  const { schedules, routes, routePoints, vehicles, bookings, addBooking, updateScheduleStatus } = useShuttle();
   const [scanOpen, setScanOpen] = useState(false);
   const [scanInput, setScanInput] = useState('');
+  const [addPassengerOpen, setAddPassengerOpen] = useState(false);
+  const [passengerName, setPassengerName] = useState('');
+  const [selectedPickup, setSelectedPickup] = useState('');
+  const [selectedSeat, setSelectedSeat] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qris'>('cash');
 
   const schedule = schedules.find(s => s.id === scheduleId);
   const route = routes.find(r => r.id === schedule?.routeId);
   const vehicle = vehicles.find(v => v.id === schedule?.vehicleId);
   const passengers = bookings.filter(b => b.scheduleId === scheduleId && b.status !== 'cancelled');
+  const points = routePoints.filter(p => p.routeId === schedule?.routeId).sort((a, b) => a.order - b.order);
 
   if (!schedule || !route || !vehicle) return <div className="p-4">Data tidak ditemukan</div>;
 
   const seats = generateSeats(vehicle.id);
   const bookedSeats = passengers.map(p => p.seatNumber);
+  const availableSeats = seats.filter(s => !bookedSeats.includes(s.seatNumber));
   const cols = vehicle.capacity <= 8 ? 2 : 3;
+  const canAddPassenger = schedule.status === 'boarding' || schedule.status === 'departed';
 
   const handleStart = () => {
     updateScheduleStatus(schedule.id, 'departed');
@@ -49,6 +58,48 @@ const DriverTripDetail = () => {
     }
     setScanInput('');
     setScanOpen(false);
+  };
+
+  const handleAddPassenger = () => {
+    if (!passengerName.trim() || !selectedPickup || !selectedSeat) {
+      toast.error('Lengkapi semua data penumpang!');
+      return;
+    }
+    const pickup = points.find(p => p.id === selectedPickup);
+    if (!pickup) return;
+
+    const seatNum = parseInt(selectedSeat);
+    if (bookedSeats.includes(seatNum)) {
+      toast.error('Kursi sudah terisi!');
+      return;
+    }
+
+    const newBooking = {
+      id: `b${Date.now()}`,
+      userId: `rt-${Date.now()}`,
+      userName: passengerName.trim(),
+      scheduleId: schedule.id,
+      routeId: route.id,
+      routeName: route.name,
+      pickupPointId: pickup.id,
+      pickupPointName: pickup.name,
+      seatNumber: seatNum,
+      price: pickup.price,
+      status: 'confirmed' as const,
+      bookingDate: new Date().toISOString().split('T')[0],
+      departureTime: schedule.departureTime,
+      paymentStatus: 'paid' as const,
+      paymentMethod: paymentMethod === 'cash' ? 'ewallet' as const : 'qris' as const,
+      bookingType: 'realtime' as const,
+    };
+
+    addBooking(newBooking);
+    toast.success(`✅ ${passengerName} ditambahkan! Kursi #${seatNum} · ${formatRupiah(pickup.price)}`);
+    setPassengerName('');
+    setSelectedPickup('');
+    setSelectedSeat('');
+    setPaymentMethod('cash');
+    setAddPassengerOpen(false);
   };
 
   return (
@@ -79,10 +130,22 @@ const DriverTripDetail = () => {
         </CardContent>
       </Card>
 
-      {/* Scan QR */}
-      <Button variant="outline" className="w-full" onClick={() => setScanOpen(true)}>
-        <QrCode className="h-4 w-4 mr-2" /> Scan QR Tiket
-      </Button>
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="outline" onClick={() => setScanOpen(true)}>
+          <QrCode className="h-4 w-4 mr-2" /> Scan QR
+        </Button>
+        {canAddPassenger && availableSeats.length > 0 && (
+          <Button onClick={() => setAddPassengerOpen(true)} className="bg-orange-500 hover:bg-orange-600 text-white">
+            <UserPlus className="h-4 w-4 mr-2" /> + Penumpang
+          </Button>
+        )}
+        {canAddPassenger && availableSeats.length === 0 && (
+          <Button disabled variant="outline">
+            <UserPlus className="h-4 w-4 mr-2" /> Kursi Penuh
+          </Button>
+        )}
+      </div>
 
       {/* Seat Map */}
       <Card>
@@ -91,17 +154,29 @@ const DriverTripDetail = () => {
           <div className={`grid gap-2 mx-auto ${cols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`} style={{ maxWidth: cols === 3 ? '180px' : '120px' }}>
             {seats.map(seat => {
               const isBooked = bookedSeats.includes(seat.seatNumber);
+              const passenger = passengers.find(p => p.seatNumber === seat.seatNumber);
+              const isRealtime = passenger?.bookingType === 'realtime';
               return (
                 <div
                   key={seat.seatNumber}
                   className={`aspect-square rounded-lg flex items-center justify-center text-sm font-bold ${
-                    isBooked ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                    isBooked
+                      ? isRealtime
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
                   }`}
+                  title={passenger ? `${passenger.userName} (${passenger.bookingType})` : 'Kosong'}
                 >
                   {seat.seatNumber}
                 </div>
               );
             })}
+          </div>
+          <div className="flex justify-center gap-4 mt-3 text-xs">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-primary inline-block" /> Terjadwal</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-500 inline-block" /> Realtime</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-muted inline-block" /> Kosong</span>
           </div>
         </CardContent>
       </Card>
@@ -117,10 +192,22 @@ const DriverTripDetail = () => {
               <div key={p.id} className="flex items-center gap-3 p-2 bg-muted rounded-lg">
                 <User className="h-5 w-5 text-primary" />
                 <div className="flex-1">
-                  <p className="font-medium text-sm">{p.userName}</p>
-                  <p className="text-xs text-muted-foreground"><MapPin className="h-3 w-3 inline" /> {p.pickupPointName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm">{p.userName}</p>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] px-1.5 py-0 ${
+                        p.bookingType === 'realtime'
+                          ? 'border-orange-500 text-orange-600'
+                          : 'border-primary text-primary'
+                      }`}
+                    >
+                      {p.bookingType === 'realtime' ? 'Realtime' : 'Terjadwal'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground"><MapPin className="h-3 w-3 inline" /> {p.pickupPointName} · {formatRupiah(p.price)}</p>
                 </div>
-                <Badge variant="outline">Kursi #{p.seatNumber}</Badge>
+                <Badge variant="outline">#{p.seatNumber}</Badge>
               </div>
             ))
           )}
@@ -149,6 +236,85 @@ const DriverTripDetail = () => {
             </div>
             <Button className="w-full" onClick={handleScan} disabled={!scanInput.trim()}>
               Validasi Tiket
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Passenger Dialog */}
+      <Dialog open={addPassengerOpen} onOpenChange={setAddPassengerOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5" /> Tambah Penumpang</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Nama Penumpang</label>
+              <Input
+                placeholder="Masukkan nama"
+                value={passengerName}
+                onChange={e => setPassengerName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Titik Jemput</label>
+              <Select value={selectedPickup} onValueChange={setSelectedPickup}>
+                <SelectTrigger><SelectValue placeholder="Pilih titik jemput" /></SelectTrigger>
+                <SelectContent>
+                  {points.filter(p => p.distanceToDestination > 0).map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.code} — {p.name} · {formatRupiah(p.price)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedPickup && (
+              <div className="bg-muted rounded-lg p-3 text-center">
+                <p className="text-xs text-muted-foreground">Harga dari titik jemput</p>
+                <p className="text-xl font-bold text-primary">{formatRupiah(points.find(p => p.id === selectedPickup)?.price || 0)}</p>
+              </div>
+            )}
+            <div>
+              <label className="text-sm font-medium mb-1 block">Pilih Kursi</label>
+              <Select value={selectedSeat} onValueChange={setSelectedSeat}>
+                <SelectTrigger><SelectValue placeholder="Pilih kursi kosong" /></SelectTrigger>
+                <SelectContent>
+                  {availableSeats.map(s => (
+                    <SelectItem key={s.seatNumber} value={String(s.seatNumber)}>
+                      Kursi #{s.seatNumber}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Metode Bayar</label>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={paymentMethod === 'cash' ? 'default' : 'outline'}
+                  onClick={() => setPaymentMethod('cash')}
+                  className="w-full"
+                >
+                  💵 Cash
+                </Button>
+                <Button
+                  type="button"
+                  variant={paymentMethod === 'qris' ? 'default' : 'outline'}
+                  onClick={() => setPaymentMethod('qris')}
+                  className="w-full"
+                >
+                  📱 QRIS
+                </Button>
+              </div>
+            </div>
+            <Button
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+              onClick={handleAddPassenger}
+              disabled={!passengerName.trim() || !selectedPickup || !selectedSeat}
+            >
+              Tambahkan Penumpang
             </Button>
           </div>
         </DialogContent>
