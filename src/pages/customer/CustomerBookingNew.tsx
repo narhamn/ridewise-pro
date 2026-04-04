@@ -48,6 +48,7 @@ const CustomerBookingNew = () => {
       return;
     }
     const pickup = points.find(p => p.id === selectedPickup);
+    const bookingPrice = pickup?.price || route.price;
     const newBooking = {
       id: `b${Date.now()}`,
       userId: currentUser?.id || 'u1',
@@ -58,7 +59,7 @@ const CustomerBookingNew = () => {
       pickupPointId: selectedPickup,
       pickupPointName: pickup?.name || '',
       seatNumber: selectedSeat,
-      price: route.price,
+      price: bookingPrice,
       status: 'confirmed' as const,
       bookingDate: new Date().toISOString().split('T')[0],
       departureTime: schedule.departureTime,

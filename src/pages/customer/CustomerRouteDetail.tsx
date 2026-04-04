@@ -34,12 +34,27 @@ const CustomerRouteDetail = () => {
         <p className="text-sm opacity-80">{(route.distanceMeters / 1000).toFixed(0)} km · {formatRupiah(route.price)}</p>
       </div>
 
-      {/* Pickup Points */}
+      {/* Pickup Points with price */}
       <div>
         <h3 className="font-semibold mb-2 flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> Titik Penjemputan</h3>
-        <div className="flex gap-2 flex-wrap">
+        <div className="space-y-2">
           {points.map(p => (
-            <Badge key={p.id} variant="outline" className="px-3 py-1.5">{p.code} — {p.name}</Badge>
+            <div key={p.id} className="flex items-center justify-between border rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="font-mono">{p.code}</Badge>
+                <span className="text-sm">{p.name}</span>
+              </div>
+              <div className="text-right text-sm">
+                {p.order === 1 ? (
+                  <span className="text-muted-foreground">Asal</span>
+                ) : (
+                  <>
+                    <span className="font-semibold text-primary">{formatRupiah(p.price)}</span>
+                    <span className="text-muted-foreground ml-1 text-xs">({(p.cumulativeDistance / 1000).toFixed(0)} km)</span>
+                  </>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       </div>
