@@ -1,53 +1,82 @@
-
-
-# Logika Driver Mendapatkan Penumpang (Terjadwal + Realtime)
+# Penumpang Realtime ala GoCar/GrabCar
 
 ## Konsep
 
-Saat ini driver hanya melihat penumpang yang sudah booking via jadwal. Fitur baru menambahkan kemampuan driver untuk **menambah penumpang secara langsung (realtime)** di perjalanan yang sedang berjalan — mirip angkutan umum yang bisa naikkan penumpang di jalan.
+Saat ini driver menambah penumpang secara manual (input nama). Fitur baru mengubah flow menjadi seperti ride-hailing:
+
+1. **Customer** melihat shuttle yang sedang jalan (status `boarding`/`departed`) dan request naik
+2. **Driver** mendapat notifikasi request masuk dan bisa **Terima** atau **Tolak**
+3. Setelah diterima, kursi otomatis terisi dan penumpang dapat e-ticket
+
+```text
+Customer                          Driver
+   │                                │
+   ├─ Lihat shuttle aktif ──────►   │
+   ├─ Pilih titik jemput + kursi    │
+   ├─ Request Naik ─────────────►   │
+   │                                ├─ Notifikasi masuk
+   │                                ├─ Terima / Tolak
+   │  ◄──────── Konfirmasi ─────────┤
+   ├─ Dapat tiket + status          │
+   └────────────────────────────────┘
+```
 
 ## Perubahan
 
-### 1. Update Type — Tandai booking terjadwal vs realtime
-**File:** `src/types/shuttle.ts`
-- Tambah field `bookingType: 'scheduled' | 'realtime'` ke interface `Booking`
-- Booking dari customer app = `scheduled`, booking dari driver = `realtime`
+### 1. Tambah tipe `RideRequest` di `src/types/shuttle.ts`
 
-### 2. Fitur "Tambah Penumpang" di DriverTripDetail
-**File:** `src/pages/driver/DriverTripDetail.tsx`
-- Tambah tombol **"+ Tambah Penumpang"** (hanya muncul saat status `departed` atau `boarding`)
-- Dialog form: Nama penumpang, Pilih titik jemput (dropdown dari route points), Pilih kursi kosong
-- Harga otomatis dihitung dari titik jemput yang dipilih (distanceToDestination × pricePerMeter)
-- Metode bayar: Cash / QRIS (bayar langsung ke driver)
-- Booking baru dibuat dengan `bookingType: 'realtime'`, `paymentStatus: 'paid'`
-- Peta kursi dan daftar penumpang langsung ter-update
+- Interface baru: `RideRequest { id, userId, userName, scheduleId, routeId, pickupPointId, pickupPointName, seatNumber, price, status: 'pending' | 'accepted' | 'rejected', createdAt }`
+- Ini mewakili request customer yang menunggu konfirmasi driver
 
-### 3. Bedakan tampilan penumpang terjadwal vs realtime
-**File:** `src/pages/driver/DriverTripDetail.tsx`
-- Di daftar penumpang, tambah badge **"Terjadwal"** (biru) atau **"Realtime"** (hijau/orange) 
-- Driver bisa lihat mana penumpang yang sudah booking dan mana yang naik di jalan
+### 2. Update Context — tambah state & fungsi ride request
 
-### 4. Update Context — fungsi addBooking sudah ada, cukup dipakai
 **File:** `src/contexts/ShuttleContext.tsx`
-- Tidak perlu perubahan besar, `addBooking` sudah tersedia
-- Pastikan booking realtime juga masuk ke daftar bookings global
 
-### 5. Update dummy data
-**File:** `src/data/dummy.ts`
-- Tambah `bookingType: 'scheduled'` ke semua booking dummy yang ada
+- State baru: `rideRequests: RideRequest[]`
+- Fungsi: `addRideRequest()`, `acceptRideRequest(id)` (buat booking otomatis), `rejectRideRequest(id)`
 
-### 6. Update referensi booking lainnya
-**File:** `src/pages/customer/CustomerBookingNew.tsx`, `src/pages/admin/AdminBookings.tsx`
-- Set `bookingType: 'scheduled'` saat customer booking
-- Admin bookings: tampilkan kolom/badge tipe booking
+### 3. Halaman customer: "Naik Sekarang"
+
+**File baru:** `src/pages/customer/CustomerRideNow.tsx`
+
+- Tampilkan daftar shuttle yang sedang aktif (`boarding`/`departed`) dengan kursi kosong
+- Customer pilih shuttle → pilih titik jemput → pilih kursi → "Request Naik"
+- Setelah request, tampilkan status menunggu konfirmasi driver
+- Jika diterima → redirect ke booking detail  / Pembayaran / e-ticket
+- Jika ditolak → tampilkan pesan ditolak
+
+### 4. Tombol "Naik Sekarang" di CustomerHome
+
+**File:** `src/pages/customer/CustomerHome.tsx`
+
+- Tambah card/button prominent "🚐 Naik Sekarang" di atas daftar rute
+- Navigate ke `/customer/ride-now`
+
+### 5. Driver: panel request masuk di DriverTripDetail
+
+**File:** `src/pages/driver/DriverTripDetail.tsx`
+
+- Tampilkan section "Request Masuk" dengan daftar pending requests
+- Setiap request menampilkan: nama, titik jemput, kursi, harga
+- Tombol **Terima** (hijau) dan **Tolak** (merah)
+- Terima → otomatis buat booking `realtime` + `paid`, update kursi
+- Tolak → update status request jadi `rejected`
+- Tetap pertahankan tombol "+ Penumpang" manual untuk kasus tanpa smartphone
+
+### 6. Routing & Layout
+
+**File:** `src/App.tsx`
+
+- Tambah route `/customer/ride-now` → `CustomerRideNow`
 
 ## Dampak File
 
-| File | Aksi |
-|------|------|
-| `src/types/shuttle.ts` | Tambah `bookingType` ke Booking |
-| `src/data/dummy.ts` | Tambah `bookingType: 'scheduled'` ke dummy |
-| `src/pages/driver/DriverTripDetail.tsx` | Tambah dialog "Tambah Penumpang" + badge tipe |
-| `src/pages/customer/CustomerBookingNew.tsx` | Set `bookingType: 'scheduled'` |
-| `src/pages/admin/AdminBookings.tsx` | Tampilkan badge tipe booking |
 
+| File                                     | Aksi                                        |
+| ---------------------------------------- | ------------------------------------------- |
+| `src/types/shuttle.ts`                   | Tambah interface `RideRequest`              |
+| `src/contexts/ShuttleContext.tsx`        | State + fungsi ride request                 |
+| `src/pages/customer/CustomerRideNow.tsx` | **Baru** — halaman request naik realtime    |
+| `src/pages/customer/CustomerHome.tsx`    | Tambah tombol "Naik Sekarang"               |
+| `src/pages/driver/DriverTripDetail.tsx`  | Tambah section request masuk + terima/tolak |
+| `src/App.tsx`                            | Tambah route `/customer/ride-now`           |
