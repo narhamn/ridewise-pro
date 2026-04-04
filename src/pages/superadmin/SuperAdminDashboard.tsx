@@ -131,7 +131,7 @@ const SuperAdminDashboard = () => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Platform Fee (Avg)</p>
-                <h3 className="text-2xl font-bold mt-1">{systemConfig.platformFeePercentage}%</h3>
+                <h3 className="text-2xl font-bold mt-1">10%</h3>
                 <div className="flex items-center mt-2 text-xs text-orange-600">
                   <Settings className="h-3 w-3 mr-1" />
                   <span>Current Business Rule</span>
