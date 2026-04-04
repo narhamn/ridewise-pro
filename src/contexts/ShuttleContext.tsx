@@ -56,6 +56,9 @@ interface ShuttleContextType {
   notifyTripUpdate: (scheduleId: string, status: Schedule['status']) => void;
   getAvailableDrivers: (date: string, timeSlot?: string) => Driver[];
   getDriverSchedule: (driverId: string, date?: string) => Schedule[];
+  updateDriverProfile: (driverId: string, updates: Partial<Driver>) => void;
+  recalcRoutePointPrices: (routeId: string, pricePerMeter: number, roadConditionMultiplier?: number, vehicleTypeMultiplier?: number) => void;
+  recalculateRouteDistanceAndPrice: (routeId: string, roadConditionMultiplier?: number, vehicleTypeMultiplier?: number) => void;
 }
 
 const ShuttleContext = createContext<ShuttleContextType | undefined>(undefined);

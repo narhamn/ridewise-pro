@@ -1,5 +1,4 @@
-import { useShuttle } from '@/contexts/ShuttleContext';
-import { MapLayerType } from '@/types/shuttle';
+import { useState } from 'react';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -11,6 +10,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Layers, Map as MapIcon, Globe, Moon } from 'lucide-react';
 
+export type MapLayerType = 'osm' | 'satellite' | 'terrain' | 'dark';
+
 export const MAP_LAYERS: Record<MapLayerType, { name: string, url: string, attribution: string, icon: any }> = {
   osm: {
     name: 'OpenStreetMap',
@@ -21,26 +22,24 @@ export const MAP_LAYERS: Record<MapLayerType, { name: string, url: string, attri
   satellite: {
     name: 'Satellite',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EBP, and the GIS User Community',
+    attribution: 'Tiles &copy; Esri',
     icon: Globe
   },
   terrain: {
     name: 'Terrain',
     url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)',
+    attribution: '&copy; OpenTopoMap (CC-BY-SA)',
     icon: Globe
   },
   dark: {
     name: 'Dark Mode',
     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    attribution: '&copy; CARTO',
     icon: Moon
   }
 };
 
-export const MapController = () => {
-  const { mapLayer, setMapLayer } = useShuttle();
-
+export const MapController = ({ mapLayer, setMapLayer }: { mapLayer: MapLayerType; setMapLayer: (layer: MapLayerType) => void }) => {
   const currentLayer = MAP_LAYERS[mapLayer];
 
   return (

@@ -28,6 +28,7 @@ export const useGeolocation = (options: GeolocationOptions = {}, enabled: boolea
 
   const handleSuccess = useCallback((pos: GeolocationPosition) => {
     const newLocation: DriverLocation = {
+      driverId: '',
       latitude: pos.coords.latitude,
       longitude: pos.coords.longitude,
       altitude: pos.coords.altitude,

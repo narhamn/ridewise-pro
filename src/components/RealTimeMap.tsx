@@ -454,7 +454,7 @@ const RealTimeMap = ({
               <h3 className="font-bold text-lg text-gray-900">📍 Rute Perjalanan</h3>
               {selectedSchedule && (
                 <p className="text-xs text-gray-600 mt-1">
-                  Booking: <strong>{selectedSchedule.bookingId}</strong>
+                  Jadwal: <strong>{selectedSchedule.id}</strong>
                 </p>
               )}
             </div>

@@ -41,6 +41,7 @@ const AdminDashboard = () => {
         const lng = baseLng + (Math.random() - 0.5) * 0.1;
         
         updateDriverLocation(driver.id, {
+          driverId: driver.id,
           latitude: lat,
           longitude: lng,
           speed: Math.random() * 60,
@@ -54,6 +55,7 @@ const AdminDashboard = () => {
       // Simulate some extra phantom entities for performance testing (100+ total)
       for(let i=0; i<100; i++) {
         updateDriverLocation(`phantom-${i}`, {
+          driverId: `phantom-${i}`,
           latitude: 3.5952 + (Math.random() - 0.5) * 0.5,
           longitude: 98.6722 + (Math.random() - 0.5) * 0.5,
           speed: Math.random() * 80,

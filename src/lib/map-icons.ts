@@ -358,9 +358,9 @@ export const createRoutePointPopup = (
             <span>${(distanceToNext / 1000).toFixed(2)} km</span>
           ` : ''}
           
-          ${point.waiting_time ? `
+          ${(point as any).waiting_time ? `
             <span style="color: #6b7280;">⏱️ Waktu Tunggu:</span>
-            <span>${point.waiting_time} menit</span>
+            <span>${(point as any).waiting_time} menit</span>
           ` : ''}
         </div>
         
