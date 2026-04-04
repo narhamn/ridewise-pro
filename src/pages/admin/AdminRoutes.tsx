@@ -9,13 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, MapPin, ChevronRight, ArrowLeft, Settings, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Trash2, MapPin, ChevronRight, ArrowLeft, Settings, RefreshCw, CalendarDays } from 'lucide-react';
 import { formatRupiah } from '@/data/dummy';
 import { toast } from 'sonner';
 import { Route, RoutePoint } from '@/types/shuttle';
 
 const AdminRoutes = () => {
-  const { routes, setRoutes, routePoints, setRoutePoints, rayonPricing, setRayonPricing, recalcRoutePointPrices } = useShuttle();
+  const { routes, setRoutes, routePoints, setRoutePoints, rayonPricing, setRayonPricing, recalcRoutePointPrices, schedules, setSchedules, vehicles } = useShuttle();
   const [openRoute, setOpenRoute] = useState(false);
   const [openPoint, setOpenPoint] = useState(false);
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
@@ -23,6 +23,8 @@ const AdminRoutes = () => {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [routeForm, setRouteForm] = useState({ name: '', rayon: 'A' as Route['rayon'], origin: '', destination: '', pricePerMeter: 2 });
   const [pointForm, setPointForm] = useState({ code: '', name: '', distanceFromPrevious: 0, lat: 3.5952, lng: 98.6722 });
+  const [openSchedule, setOpenSchedule] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({ routeId: '', departureTime: '', vehicleId: '' });
 
   const selectedRoute = routes.find(r => r.id === selectedRouteId);
   const points = routePoints.filter(p => p.routeId === selectedRouteId).sort((a, b) => a.order - b.order);
@@ -217,6 +219,19 @@ const AdminRoutes = () => {
     }));
   };
 
+  // --- Schedule CRUD ---
+  const handleSaveSchedule = () => {
+    setSchedules(prev => [...prev, { id: `s${Date.now()}`, ...scheduleForm, driverId: null, status: 'scheduled' as const }]);
+    toast.success('Jadwal ditambahkan');
+    setOpenSchedule(false);
+    setScheduleForm({ routeId: '', departureTime: '', vehicleId: '' });
+  };
+
+  const handleDeleteSchedule = (id: string) => {
+    setSchedules(prev => prev.filter(s => s.id !== id));
+    toast.success('Jadwal dihapus');
+  };
+
   return (
     <div className="space-y-4">
       <Tabs defaultValue="routes">
@@ -227,16 +242,17 @@ const AdminRoutes = () => {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            <h1 className="text-2xl font-bold">
-              {selectedRouteId ? selectedRoute?.name : 'Kelola Rute & Harga'}
-            </h1>
-          </div>
-          {!selectedRouteId && (
-            <TabsList>
-              <TabsTrigger value="routes"><MapPin className="h-4 w-4 mr-1" />Rute</TabsTrigger>
-              <TabsTrigger value="pricing"><Settings className="h-4 w-4 mr-1" />Pengaturan Harga</TabsTrigger>
-            </TabsList>
-          )}
+             <h1 className="text-2xl font-bold">
+               {selectedRouteId ? selectedRoute?.name : 'Rute, Jadwal & Harga'}
+             </h1>
+           </div>
+           {!selectedRouteId && (
+             <TabsList>
+               <TabsTrigger value="routes"><MapPin className="h-4 w-4 mr-1" />Rute</TabsTrigger>
+               <TabsTrigger value="schedules"><CalendarDays className="h-4 w-4 mr-1" />Jadwal</TabsTrigger>
+               <TabsTrigger value="pricing"><Settings className="h-4 w-4 mr-1" />Harga</TabsTrigger>
+             </TabsList>
+           )}
         </div>
 
         {/* === PRICING SETTINGS TAB === */}
@@ -472,6 +488,61 @@ const AdminRoutes = () => {
               </Card>
             </div>
           )}
+        </TabsContent>
+
+        {/* === SCHEDULES TAB === */}
+        <TabsContent value="schedules" className="space-y-4">
+          <div className="flex justify-end">
+            <Dialog open={openSchedule} onOpenChange={setOpenSchedule}>
+              <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" />Tambah Jadwal</Button></DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Tambah Jadwal</DialogTitle></DialogHeader>
+                <div className="space-y-3">
+                  <div><Label>Rute</Label>
+                    <Select value={scheduleForm.routeId} onValueChange={v => setScheduleForm({...scheduleForm, routeId: v})}>
+                      <SelectTrigger><SelectValue placeholder="Pilih rute" /></SelectTrigger>
+                      <SelectContent>{routes.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Jam Berangkat</Label><Input type="time" value={scheduleForm.departureTime} onChange={e => setScheduleForm({...scheduleForm, departureTime: e.target.value})} /></div>
+                  <div><Label>Kendaraan</Label>
+                    <Select value={scheduleForm.vehicleId} onValueChange={v => setScheduleForm({...scheduleForm, vehicleId: v})}>
+                      <SelectTrigger><SelectValue placeholder="Pilih kendaraan" /></SelectTrigger>
+                      <SelectContent>{vehicles.filter(v => v.status === 'active').map(v => <SelectItem key={v.id} value={v.id}>{v.name} ({v.plateNumber})</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <Button className="w-full" onClick={handleSaveSchedule}>Simpan</Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Rute</TableHead>
+                    <TableHead>Waktu</TableHead>
+                    <TableHead>Kendaraan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {schedules.map(s => (
+                    <TableRow key={s.id}>
+                      <TableCell>{routes.find(r => r.id === s.routeId)?.name}</TableCell>
+                      <TableCell className="font-mono">{s.departureTime}</TableCell>
+                      <TableCell>{vehicles.find(v => v.id === s.vehicleId)?.name}</TableCell>
+                      <TableCell><Badge variant="secondary">{s.status}</Badge></TableCell>
+                      <TableCell><Button variant="ghost" size="icon" onClick={() => handleDeleteSchedule(s.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

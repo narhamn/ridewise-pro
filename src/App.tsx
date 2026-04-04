@@ -32,7 +32,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminRoutes from "./pages/admin/AdminRoutes";
 
-import AdminSchedules from "./pages/admin/AdminSchedules";
+
 import AdminDrivers from "./pages/admin/AdminDrivers";
 import AdminVehicles from "./pages/admin/AdminVehicles";
 
@@ -83,7 +83,6 @@ const App = () => (
                 <Route index element={<AdminDashboard />} />
                 <Route path="routes" element={<AdminRoutes />} />
                 
-                <Route path="schedules" element={<AdminSchedules />} />
                 <Route path="drivers" element={<AdminDrivers />} />
                 <Route path="vehicles" element={<AdminVehicles />} />
                 
