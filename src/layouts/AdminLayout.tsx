@@ -9,9 +9,8 @@ const menuItems = [
   { title: 'Dashboard', url: '/admin', icon: LayoutDashboard },
   { title: 'Analytics', url: '/admin/analytics', icon: BarChart3 },
   { title: 'Tracking', url: '/admin/tracking', icon: Map },
-  { title: 'Rute', url: '/admin/routes', icon: Navigation },
-  
-  { title: 'Jadwal', url: '/admin/schedules', icon: CalendarDays },
+  { title: 'Rute & Jadwal', url: '/admin/routes', icon: Navigation },
+  { title: 'Driver', url: '/admin/drivers', icon: Users },
   { title: 'Driver', url: '/admin/drivers', icon: Users },
   { title: 'Kendaraan & Driver', url: '/admin/vehicles', icon: Bus },
   { title: 'Booking', url: '/admin/bookings', icon: BookOpen },
