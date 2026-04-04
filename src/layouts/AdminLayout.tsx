@@ -10,7 +10,7 @@ const menuItems = [
   { title: 'Analytics', url: '/admin/analytics', icon: BarChart3 },
   { title: 'Tracking', url: '/admin/tracking', icon: Map },
   { title: 'Rute', url: '/admin/routes', icon: Navigation },
-  { title: 'Titik Jemput', url: '/admin/points', icon: MapPin },
+  
   { title: 'Jadwal', url: '/admin/schedules', icon: CalendarDays },
   { title: 'Driver', url: '/admin/drivers', icon: Users },
   { title: 'Kendaraan', url: '/admin/vehicles', icon: Bus },

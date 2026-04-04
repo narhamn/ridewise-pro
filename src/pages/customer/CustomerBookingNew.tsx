@@ -48,6 +48,7 @@ const CustomerBookingNew = () => {
       return;
     }
     const pickup = points.find(p => p.id === selectedPickup);
+    const bookingPrice = pickup?.price || route.price;
     const newBooking = {
       id: `b${Date.now()}`,
       userId: currentUser?.id || 'u1',
@@ -58,7 +59,7 @@ const CustomerBookingNew = () => {
       pickupPointId: selectedPickup,
       pickupPointName: pickup?.name || '',
       seatNumber: selectedSeat,
-      price: route.price,
+      price: bookingPrice,
       status: 'confirmed' as const,
       bookingDate: new Date().toISOString().split('T')[0],
       departureTime: schedule.departureTime,
@@ -84,7 +85,7 @@ const CustomerBookingNew = () => {
           <p><span className="text-muted-foreground">Rute:</span> {route.name}</p>
           <p><span className="text-muted-foreground">Waktu:</span> {schedule.departureTime}</p>
           <p><span className="text-muted-foreground">Kendaraan:</span> {vehicle.name} ({vehicle.plateNumber})</p>
-          <p><span className="text-muted-foreground">Harga:</span> <span className="font-bold text-primary">{formatRupiah(route.price)}</span></p>
+          <p><span className="text-muted-foreground">Harga mulai:</span> <span className="font-bold text-primary">{formatRupiah(points.length > 1 ? points[1]?.price || 0 : route.price)} — {formatRupiah(route.price)}</span></p>
         </CardContent>
       </Card>
 
@@ -95,8 +96,8 @@ const CustomerBookingNew = () => {
           <Select value={selectedPickup} onValueChange={setSelectedPickup}>
             <SelectTrigger><SelectValue placeholder="Pilih titik jemput" /></SelectTrigger>
             <SelectContent>
-              {points.map(p => (
-                <SelectItem key={p.id} value={p.id}>{p.code} — {p.name}</SelectItem>
+              {points.filter(p => p.order > 1).map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.code} — {p.name} ({formatRupiah(p.price)})</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -149,7 +150,7 @@ const CustomerBookingNew = () => {
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-sm text-muted-foreground">Total Harga</p>
-              <p className="text-2xl font-bold text-primary">{formatRupiah(route.price)}</p>
+              <p className="text-2xl font-bold text-primary">{formatRupiah(selectedPickup ? (points.find(p => p.id === selectedPickup)?.price || route.price) : route.price)}</p>
             </div>
             {selectedSeat && <Badge className="bg-primary text-primary-foreground">Kursi #{selectedSeat}</Badge>}
           </div>
@@ -162,7 +163,7 @@ const CustomerBookingNew = () => {
       <PaymentModal
         open={showPayment}
         onClose={() => setShowPayment(false)}
-        amount={route.price}
+        amount={selectedPickup ? (points.find(p => p.id === selectedPickup)?.price || route.price) : route.price}
         onConfirm={handlePaymentConfirm}
       />
     </div>
