@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useShuttle } from '@/contexts/ShuttleContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,16 +7,18 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, User, MapPin, QrCode, UserPlus, Bell, Check, X } from 'lucide-react';
+import { ArrowLeft, User, MapPin, QrCode, UserPlus, Bell, Check, X, CheckCircle2 } from 'lucide-react';
 import { generateSeats, formatRupiah } from '@/data/dummy';
 import { toast } from 'sonner';
+import QRScanner from '@/components/QRScanner';
 
 const DriverTripDetail = () => {
   const { scheduleId } = useParams();
   const navigate = useNavigate();
-  const { schedules, routes, routePoints, vehicles, bookings, addBooking, updateScheduleStatus, rideRequests, acceptRideRequest, rejectRideRequest } = useShuttle();
+  const { schedules, routes, routePoints, vehicles, bookings, addBooking, updateScheduleStatus, rideRequests, acceptRideRequest, rejectRideRequest, checkInPassenger } = useShuttle();
   const [scanOpen, setScanOpen] = useState(false);
   const [scanInput, setScanInput] = useState('');
+  const [scanMode, setScanMode] = useState<'camera' | 'manual'>('camera');
   const [addPassengerOpen, setAddPassengerOpen] = useState(false);
   const [passengerName, setPassengerName] = useState('');
   const [selectedPickup, setSelectedPickup] = useState('');
@@ -36,6 +38,7 @@ const DriverTripDetail = () => {
   const availableSeats = seats.filter(s => !bookedSeats.includes(s.seatNumber));
   const cols = vehicle.capacity <= 8 ? 2 : 3;
   const canAddPassenger = schedule.status === 'boarding' || schedule.status === 'departed';
+  const checkedInCount = passengers.filter(p => p.checkedIn).length;
 
   const handleStart = () => {
     updateScheduleStatus(schedule.id, 'departed');
@@ -47,17 +50,51 @@ const DriverTripDetail = () => {
     toast.success('Perjalanan selesai!');
   };
 
-  const handleScan = () => {
-    const found = bookings.find(b => b.id === scanInput.trim());
-    if (found && found.scheduleId === scheduleId) {
-      toast.success(`✅ Valid! Penumpang: ${found.userName}, Kursi #${found.seatNumber}`);
-    } else if (found) {
-      toast.error('❌ Tiket valid tapi bukan untuk perjalanan ini');
-    } else {
-      toast.error('❌ Tiket tidak ditemukan');
+  const processTicketData = useCallback((data: string) => {
+    try {
+      const parsed = JSON.parse(data);
+      const bookingId = parsed.id;
+      const found = bookings.find(b => b.id === bookingId);
+
+      if (found && found.scheduleId === scheduleId) {
+        if (found.checkedIn) {
+          toast.warning(`⚠️ ${found.userName} sudah check-in sebelumnya (Kursi #${found.seatNumber})`);
+        } else {
+          checkInPassenger(found.id);
+          toast.success(`✅ Check-in berhasil! ${found.userName} — Kursi #${found.seatNumber}`);
+        }
+      } else if (found) {
+        toast.error('❌ Tiket valid tapi bukan untuk perjalanan ini');
+      } else {
+        toast.error('❌ Tiket tidak ditemukan');
+      }
+    } catch {
+      // Not JSON — try as plain booking ID
+      const found = bookings.find(b => b.id === data.trim());
+      if (found && found.scheduleId === scheduleId) {
+        if (found.checkedIn) {
+          toast.warning(`⚠️ ${found.userName} sudah check-in sebelumnya`);
+        } else {
+          checkInPassenger(found.id);
+          toast.success(`✅ Check-in berhasil! ${found.userName} — Kursi #${found.seatNumber}`);
+        }
+      } else if (found) {
+        toast.error('❌ Tiket valid tapi bukan untuk perjalanan ini');
+      } else {
+        toast.error('❌ Tiket tidak ditemukan');
+      }
     }
-    setScanInput('');
     setScanOpen(false);
+    setScanInput('');
+  }, [bookings, scheduleId, checkInPassenger]);
+
+  const handleScanSuccess = useCallback((decodedText: string) => {
+    processTicketData(decodedText);
+  }, [processTicketData]);
+
+  const handleManualScan = () => {
+    if (!scanInput.trim()) return;
+    processTicketData(scanInput.trim());
   };
 
   const handleAddPassenger = () => {
@@ -132,7 +169,7 @@ const DriverTripDetail = () => {
 
       {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" onClick={() => setScanOpen(true)}>
+        <Button variant="outline" onClick={() => { setScanOpen(true); setScanMode('camera'); }}>
           <QrCode className="h-4 w-4 mr-2" /> Scan QR
         </Button>
         {canAddPassenger && availableSeats.length > 0 && (
@@ -207,19 +244,23 @@ const DriverTripDetail = () => {
               const isBooked = bookedSeats.includes(seat.seatNumber);
               const passenger = passengers.find(p => p.seatNumber === seat.seatNumber);
               const isRealtime = passenger?.bookingType === 'realtime';
+              const isCheckedIn = passenger?.checkedIn;
               return (
                 <div
                   key={seat.seatNumber}
-                  className={`aspect-square rounded-lg flex items-center justify-center text-sm font-bold ${
+                  className={`aspect-square rounded-lg flex items-center justify-center text-sm font-bold relative ${
                     isBooked
                       ? isRealtime
                         ? 'bg-orange-500 text-white'
                         : 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground'
                   }`}
-                  title={passenger ? `${passenger.userName} (${passenger.bookingType})` : 'Kosong'}
+                  title={passenger ? `${passenger.userName} (${passenger.bookingType})${isCheckedIn ? ' ✓' : ''}` : 'Kosong'}
                 >
                   {seat.seatNumber}
+                  {isCheckedIn && (
+                    <CheckCircle2 className="h-3 w-3 absolute -top-1 -right-1 text-green-400 bg-background rounded-full" />
+                  )}
                 </div>
               );
             })}
@@ -234,7 +275,17 @@ const DriverTripDetail = () => {
 
       {/* Passengers */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Daftar Penumpang</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">Daftar Penumpang</CardTitle>
+            {passengers.length > 0 && (
+              <Badge variant="outline" className="text-xs">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Check-in: {checkedInCount}/{passengers.length}
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
         <CardContent className="space-y-2">
           {passengers.length === 0 ? (
             <p className="text-sm text-muted-foreground">Belum ada penumpang</p>
@@ -255,6 +306,15 @@ const DriverTripDetail = () => {
                     >
                       {p.bookingType === 'realtime' ? 'Realtime' : 'Terjadwal'}
                     </Badge>
+                    {p.checkedIn ? (
+                      <Badge className="text-[10px] px-1.5 py-0 bg-green-500 text-white border-0">
+                        ✓ Checked In
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                        Belum Check-in
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground"><MapPin className="h-3 w-3 inline" /> {p.pickupPointName} · {formatRupiah(p.price)}</p>
                 </div>
@@ -266,28 +326,49 @@ const DriverTripDetail = () => {
       </Card>
 
       {/* Scan QR Dialog */}
-      <Dialog open={scanOpen} onOpenChange={setScanOpen}>
+      <Dialog open={scanOpen} onOpenChange={(open) => { setScanOpen(open); if (!open) setScanMode('camera'); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><QrCode className="h-5 w-5" /> Scan QR Tiket</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="bg-muted rounded-lg p-8 text-center">
-              <QrCode className="h-16 w-16 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Kamera QR (Simulasi)</p>
+            {/* Toggle camera/manual */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={scanMode === 'camera' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setScanMode('camera')}
+              >
+                📷 Kamera
+              </Button>
+              <Button
+                variant={scanMode === 'manual' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setScanMode('manual')}
+              >
+                ⌨️ Manual
+              </Button>
             </div>
-            <div>
-              <p className="text-sm mb-2">Atau masukkan ID Booking manual:</p>
-              <Input
-                placeholder="Contoh: b1"
-                value={scanInput}
-                onChange={e => setScanInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleScan()}
-              />
-            </div>
-            <Button className="w-full" onClick={handleScan} disabled={!scanInput.trim()}>
-              Validasi Tiket
-            </Button>
+
+            {scanMode === 'camera' ? (
+              <QRScanner onScanSuccess={handleScanSuccess} />
+            ) : (
+              <div className="space-y-3">
+                <div className="bg-muted rounded-lg p-6 text-center">
+                  <QrCode className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Masukkan ID Booking secara manual</p>
+                </div>
+                <Input
+                  placeholder="Contoh: b1"
+                  value={scanInput}
+                  onChange={e => setScanInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleManualScan()}
+                />
+                <Button className="w-full" onClick={handleManualScan} disabled={!scanInput.trim()}>
+                  Validasi & Check-in
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
