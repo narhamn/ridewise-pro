@@ -1,54 +1,99 @@
 
 
-# Implementasi Scan Barcode/QR untuk Verifikasi Penumpang
+# Implementasi Tanggal Berangkat pada Jadwal
 
 ## Situasi Saat Ini
-- ETicket sudah generate QR code berisi JSON: `{ id, scheduleId, seat, route }`
-- Dialog scan di DriverTripDetail hanya input manual (ketik ID booking)
-- Belum ada kamera scanner yang benar-benar berfungsi
+
+`Schedule` hanya punya `departureTime: string` (jam saja, misal "07:00"). Tidak ada tanggal. Semua jadwal tampil tanpa konteks tanggal — customer tidak bisa booking untuk tanggal tertentu, driver tidak tahu jadwal hari apa.
 
 ## Perubahan
 
-### 1. Install library `html5-qrcode`
-- Library ringan untuk scan QR/barcode via kamera device
-- Mendukung QR Code, Barcode (Code128, EAN, dll)
+### 1. Update Type `Schedule` — tambah `departureDate`
 
-### 2. Buat komponen `QRScanner`
-**File baru:** `src/components/QRScanner.tsx`
-- Wrapper komponen untuk `Html5QrcodeScanner`
-- Props: `onScanSuccess(data)`, `onClose()`
-- Otomatis start kamera saat mount, stop saat unmount
-- Tampilkan viewfinder kamera dengan overlay scan area
-
-### 3. Update dialog scan di `DriverTripDetail.tsx`
-- Ganti placeholder kamera dengan komponen `QRScanner` yang aktif
-- Saat QR ter-scan, parse JSON data dari QR code
-- Validasi: cocokkan `scheduleId` dari QR dengan trip yang sedang aktif
-- Tambah state `checkedIn` untuk tracking penumpang yang sudah di-verifikasi
-- Hasil scan tampilkan detail: nama, kursi, titik jemput, status (Valid/Invalid)
-- Tetap pertahankan input manual sebagai fallback
-
-### 4. Tambah field `checkedIn` ke Booking
 **File:** `src/types/shuttle.ts`
-- Tambah `checkedIn?: boolean` ke interface Booking
 
-### 5. Update Context untuk check-in
-**File:** `src/contexts/ShuttleContext.tsx`  
-- Tambah fungsi `checkInPassenger(bookingId)` yang set `checkedIn: true`
+- Tambah field `departureDate: string` (format `YYYY-MM-DD`) ke interface `Schedule`
 
-### 6. Visual feedback di daftar penumpang
-**File:** `src/pages/driver/DriverTripDetail.tsx`
-- Penumpang yang sudah scan: badge hijau "✓ Checked In"
-- Penumpang belum scan: badge abu "Belum Check-in"
-- Counter di header: "Checked In: 3/5"
+### 2. Update Dummy Data
+
+**File:** `src/data/dummy.ts`
+
+- Tambah `departureDate` ke semua `dummySchedules` (mix tanggal hari ini, besok, lusa)
+
+### 3. Admin — Form Jadwal tambah Date Picker
+
+**File:** `src/pages/admin/AdminRoutes.tsx`
+
+- `scheduleForm` tambah field `departureDate`
+- Tambah input tanggal (Popover + Calendar) di form tambah jadwal
+- Tabel jadwal tampilkan kolom "Tanggal"
+- Filter/sort jadwal berdasarkan tanggal
+
+### 4. Customer — Pilih tanggal saat lihat jadwal
+
+**File:** `src/pages/customer/CustomerRouteDetail.tsx`
+
+- Tambah Date Picker di atas daftar jadwal
+- Filter `availableSchedules` berdasarkan tanggal yang dipilih (default: hari ini)
+- Tampilkan tanggal di card jadwal
+
+### 5. Customer — Booking menampilkan tanggal
+
+**File:** `src/pages/customer/CustomerBookingNew.tsx`
+
+- Tampilkan tanggal berangkat di info booking
+- Set `bookingDate` dari `schedule.departureDate`
+
+**File:** `src/pages/customer/CustomerBookingDetail.tsx`
+
+- Tampilkan tanggal berangkat
+
+**File:** `src/pages/customer/CustomerHistory.tsx`
+
+- Sudah tampil `bookingDate` — pastikan formatnya konsisten
+
+### 6. Customer — Ride Now filter hari ini
+
+**File:** `src/pages/customer/CustomerRideNow.tsx`
+
+- Filter `activeSchedules` hanya yang `departureDate` = hari ini
+
+### 7. Driver — Filter jadwal per tanggal
+
+**File:** `src/pages/driver/DriverDashboard.tsx`
+
+- Judul "Perjalanan Hari Ini" → filter `mySchedules` yang `departureDate` = hari ini
+- Tampilkan tanggal di card
+
+**File:** `src/pages/driver/DriverTrips.tsx`
+
+- Tampilkan tanggal di setiap card trip
+- Group atau sort by tanggal
+
+### 8. E-Ticket — tampilkan tanggal
+
+**File:** `src/components/ETicket.tsx`
+
+- Tambah tanggal berangkat di tampilan tiket (ambil dari `booking.bookingDate`)
+
+### 9. Admin Bookings — kolom tanggal
+
+**File:** `src/pages/admin/AdminBookings.tsx`
+
+- Kolom "Tanggal" sudah ada (`bookingDate`) — pastikan tampil jelas
 
 ## File yang Diubah
 
 | File | Aksi |
 |------|------|
-| `package.json` | Install `html5-qrcode` |
-| `src/components/QRScanner.tsx` | **Baru** — komponen kamera scanner |
-| `src/types/shuttle.ts` | Tambah `checkedIn` ke Booking |
-| `src/contexts/ShuttleContext.tsx` | Tambah `checkInPassenger()` |
-| `src/pages/driver/DriverTripDetail.tsx` | Integrasi scanner + check-in UI |
+| `src/types/shuttle.ts` | Tambah `departureDate` ke Schedule |
+| `src/data/dummy.ts` | Tambah `departureDate` ke dummy schedules |
+| `src/pages/admin/AdminRoutes.tsx` | Date picker di form jadwal + kolom tanggal |
+| `src/pages/customer/CustomerRouteDetail.tsx` | Date picker filter + tampilkan tanggal |
+| `src/pages/customer/CustomerBookingNew.tsx` | Tampilkan tanggal, set bookingDate |
+| `src/pages/customer/CustomerBookingDetail.tsx` | Tampilkan tanggal berangkat |
+| `src/pages/customer/CustomerRideNow.tsx` | Filter departureDate = hari ini |
+| `src/pages/driver/DriverDashboard.tsx` | Filter hari ini + tampilkan tanggal |
+| `src/pages/driver/DriverTrips.tsx` | Tampilkan tanggal + sort by date |
+| `src/components/ETicket.tsx` | Tampilkan tanggal di tiket |
 
