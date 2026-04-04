@@ -19,6 +19,7 @@ interface ShuttleContextType {
   addRideRequest: (request: RideRequest) => void;
   acceptRideRequest: (requestId: string) => void;
   rejectRideRequest: (requestId: string) => void;
+  checkInPassenger: (bookingId: string) => void;
   setRoutes: React.Dispatch<React.SetStateAction<Route[]>>;
   setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
   setSchedules: React.Dispatch<React.SetStateAction<Schedule[]>>;
@@ -103,6 +104,10 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     setRideRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'rejected' as const } : r));
   };
 
+  const checkInPassenger = (bookingId: string) => {
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, checkedIn: true } : b));
+  };
+
   const recalcRoutePointPrices = (routeId: string, pricePerMeter: number) => {
     setRoutePoints(prev => {
       const routePts = prev.filter(p => p.routeId === routeId).sort((a, b) => a.order - b.order);
@@ -127,7 +132,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     <ShuttleContext.Provider value={{
       currentUser, login, logout,
       routes, routePoints, schedules, drivers, vehicles, bookings, rayonPricing, rideRequests,
-      addBooking, updateScheduleStatus, addRideRequest, acceptRideRequest, rejectRideRequest,
+      addBooking, updateScheduleStatus, addRideRequest, acceptRideRequest, rejectRideRequest, checkInPassenger,
       recalcRoutePointPrices,
       setRoutes, setRoutePoints, setSchedules, setDrivers, setVehicles, setBookings, setRayonPricing,
     }}>

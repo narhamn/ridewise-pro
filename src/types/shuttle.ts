@@ -95,6 +95,7 @@ export interface Booking {
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod | null;
   bookingType: 'scheduled' | 'realtime';
+  checkedIn?: boolean;
 }
 
 export interface TripDetail {
