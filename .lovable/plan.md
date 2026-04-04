@@ -1,89 +1,59 @@
 
 
-# Fitur Advanced — ShuttleKu Management System
+# Merger: Manajemen Rute + Titik Jemput
 
-Karena ini masih tahap UI mockup (tanpa backend/Supabase), semua fitur akan diimplementasikan sebagai UI dengan data dummy dan simulasi. Payment gateway dan Firebase notification akan disiapkan sebagai UI/settings page, siap diintegrasikan saat backend ditambahkan.
+## Analisa Saat Ini
 
-## 1. GPS Tracking Driver (Leaflet Map)
+**Masalah**: Rute dan Titik Jemput dikelola di 2 halaman terpisah (`AdminRoutes` dan `AdminPoints`), padahal titik jemput selalu milik sebuah rute. Ini memaksa admin bolak-balik antar halaman.
 
-**File baru:** `src/pages/driver/DriverTracking.tsx`, `src/pages/admin/AdminTracking.tsx`
+**Data saat ini**:
+- `Route`: punya `distanceMeters` dan `pricePerMeter` di level rute (jarak total)
+- `RoutePoint`: hanya punya `code`, `name`, `order`, `lat`, `lng` — tidak punya jarak/harga sendiri
 
-- Install `leaflet` + `react-leaflet` + `@types/leaflet`
-- **Driver side**: Peta Leaflet menampilkan rute aktif dengan marker posisi driver (simulasi bergerak antar titik penjemputan). Tombol "Mulai Tracking" / "Berhenti"
-- **Admin side**: Halaman monitoring peta dengan semua driver aktif ditampilkan sebagai marker. Klik marker untuk lihat info driver + rute
-- **Customer side**: Di `CustomerBookingDetail`, tambah peta kecil menunjukkan posisi driver (simulasi)
-- Tambah data dummy koordinat lat/lng ke setiap `RoutePoint`
-- Update `AdminLayout` sidebar: tambah menu "Tracking"
+## Perubahan yang Direncanakan
 
-## 2. Payment Gateway UI (Settings-based)
+### 1. Update Type `RoutePoint` — tambah jarak & harga per titik
+Setiap titik jemput akan punya `distanceMeters` (jarak dari titik sebelumnya) dan `price` (harga dari asal ke titik ini). Harga rute total dihitung otomatis dari titik terakhir.
 
-**File baru:** `src/pages/admin/AdminPaymentSettings.tsx`, `src/components/PaymentModal.tsx`
+```text
+RoutePoint {
+  ...existing fields
+  distanceFromPrevious: number  // jarak dari titik sebelumnya (meter)
+  cumulativeDistance: number    // jarak kumulatif dari asal
+  price: number                // harga dari asal ke titik ini
+}
+```
 
-- **Admin Settings page**: Form konfigurasi payment gateway — pilih provider (Midtrans/Xendit), input Server Key, Client Key, environment (Sandbox/Production). Data disimpan di context
-- **Customer booking flow**: Setelah pilih kursi, muncul modal pembayaran dengan pilihan metode (Transfer Bank, E-Wallet, QRIS). Tampilkan simulasi halaman pembayaran dengan countdown timer
-- Tambah field `paymentStatus` dan `paymentMethod` ke type `Booking`
-- Status pembayaran: pending → paid → expired/failed
-- Update `AdminLayout` sidebar: tambah menu "Payment Settings"
+### 2. Gabung jadi satu halaman `AdminRoutes`
+Layout baru menggunakan pola **master-detail**:
+- **Kiri/Atas**: Daftar rute (card per rute dengan info rayon, asal-tujuan, total jarak, total harga)
+- **Kanan/Bawah**: Saat rute diklik/dipilih, tampilkan tabel titik jemput milik rute tersebut dengan kolom: Kode, Nama, Jarak dari titik sebelumnya, Jarak kumulatif, Harga
+- Tombol tambah/edit/hapus titik jemput langsung di dalam detail rute
+- Dialog tambah rute tetap ada, tapi `distanceMeters` dan `price` di Route dihitung otomatis dari titik jemput terakhir
 
-## 3. Notifikasi (UI Notification Center)
+### 3. Hapus halaman & route `AdminPoints`
+- Hapus `AdminPoints` dari `App.tsx` routing
+- Hapus menu "Titik Jemput" dari sidebar `AdminLayout`
+- File `AdminPoints.tsx` tidak lagi digunakan
 
-**File baru:** `src/components/NotificationCenter.tsx`, `src/contexts/NotificationContext.tsx`
+### 4. Update dummy data
+- Tambah `distanceFromPrevious`, `cumulativeDistance`, `price` ke setiap `RoutePoint` di `dummy.ts`
+- Harga dihitung proporsional berdasarkan jarak kumulatif x `pricePerMeter` rute
 
-- Context untuk menyimpan notifikasi in-app (bell icon dengan badge counter)
-- Auto-generate notifikasi saat: booking berhasil, pembayaran dikonfirmasi, perjalanan dimulai, perjalanan selesai
-- Notification dropdown di header semua layout (Customer, Driver, Admin)
-- Setiap notifikasi: icon, judul, pesan, timestamp, read/unread
-- Catatan: Firebase push notification memerlukan backend — saat ini simulasi in-app saja
+### 5. Update referensi lain
+- Customer booking flow (`CustomerBookingNew`, `CustomerRouteDetail`) yang menampilkan titik jemput — tampilkan harga per titik jemput, bukan harga flat rute
+- Booking `price` akan mengambil harga dari titik jemput yang dipilih, bukan dari rute
 
-## 4. Dashboard Analytics (Recharts)
+## Dampak File
 
-**File baru:** `src/pages/admin/AdminAnalytics.tsx`
-
-- Install `recharts`
-- Upgrade `AdminReports` atau buat halaman baru `AdminAnalytics`:
-  - **Bar chart**: Pendapatan per rute
-  - **Line chart**: Trend booking harian (data dummy 7 hari)
-  - **Pie chart**: Distribusi booking per rayon (A/B/C/D)
-  - **Area chart**: Occupancy rate per jadwal
-- KPI cards: Total revenue, avg occupancy %, booking growth, top route
-- Filter: rentang tanggal, rayon
-- Update sidebar: tambah menu "Analytics"
-
-## 5. E-Ticket / QR Code
-
-**File baru:** `src/components/ETicket.tsx`
-
-- Install `qrcode.react`
-- **E-Ticket component**: Card bergaya tiket pesawat dengan:
-  - Header: logo + nama perusahaan
-  - Info: rute, tanggal, waktu, kursi, titik jemput, harga
-  - QR Code berisi data booking (JSON encoded: bookingId, scheduleId, seatNumber)
-  - Barcode-style ID di bawah
-- Ditampilkan di `CustomerBookingDetail` dan `CustomerTickets`
-- Tombol "Download Tiket" (generate as image via html2canvas atau print-friendly CSS)
-- **Driver side**: Di `DriverTripDetail`, tambah tombol "Scan QR" (simulasi — buka modal, input booking ID manual, validasi terhadap data booking)
-
-## Technical Details
-
-**Dependencies baru:**
-- `leaflet`, `react-leaflet`, `@types/leaflet` — peta GPS
-- `recharts` — chart analytics
-- `qrcode.react` — QR code generation
-
-**Type updates (`shuttle.ts`):**
-- `RoutePoint`: tambah `lat`, `lng`
-- `Booking`: tambah `paymentStatus`, `paymentMethod`, `qrCode`
-- Baru: `Notification`, `PaymentConfig` interfaces
-
-**Context updates:**
-- `ShuttleContext`: tambah payment config state
-- Baru: `NotificationContext` untuk notifikasi in-app
-
-**Route updates (`App.tsx`):**
-- `/admin/analytics` — Dashboard Analytics
-- `/admin/tracking` — GPS Monitoring
-- `/admin/payment-settings` — Payment Settings
-- `/driver/tracking` — Driver GPS view
-
-**Estimated file changes:** ~12 file baru, ~8 file edit
+| File | Aksi |
+|------|------|
+| `src/types/shuttle.ts` | Update `RoutePoint` interface |
+| `src/data/dummy.ts` | Tambah field baru ke data dummy |
+| `src/pages/admin/AdminRoutes.tsx` | Rewrite — gabung rute + titik jemput |
+| `src/pages/admin/AdminPoints.tsx` | Tidak digunakan lagi |
+| `src/layouts/AdminLayout.tsx` | Hapus menu "Titik Jemput" |
+| `src/App.tsx` | Hapus route `/admin/points` |
+| `src/pages/customer/CustomerRouteDetail.tsx` | Tampilkan harga per titik |
+| `src/pages/customer/CustomerBookingNew.tsx` | Harga dari titik jemput |
 
