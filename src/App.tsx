@@ -18,6 +18,7 @@ import CustomerBookingDetail from "./pages/customer/CustomerBookingDetail";
 import CustomerHistory from "./pages/customer/CustomerHistory";
 import CustomerTickets from "./pages/customer/CustomerTickets";
 import CustomerProfile from "./pages/customer/CustomerProfile";
+import CustomerRideNow from "./pages/customer/CustomerRideNow";
 
 import DriverLogin from "./pages/driver/DriverLogin";
 import DriverLayout from "./layouts/DriverLayout";
