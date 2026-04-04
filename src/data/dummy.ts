@@ -1,4 +1,11 @@
-import { Route, RoutePoint, Schedule, Driver, Vehicle, Booking } from '@/types/shuttle';
+import { Route, RoutePoint, Schedule, Driver, Vehicle, Booking, RayonPricing } from '@/types/shuttle';
+
+export const defaultRayonPricing: RayonPricing[] = [
+  { rayon: 'A', pricePerMeter: 2, label: 'Rayon A (Dalam Kota)' },
+  { rayon: 'B', pricePerMeter: 1.5, label: 'Rayon B (Antar Kota Dekat)' },
+  { rayon: 'C', pricePerMeter: 1.2, label: 'Rayon C (Antar Kota Sedang)' },
+  { rayon: 'D', pricePerMeter: 1, label: 'Rayon D (Antar Kota Jauh)' },
+];
 
 export const dummyRoutes: Route[] = [
   { id: 'r1', name: 'Hermes → Kualanamu', rayon: 'A', origin: 'Hermes', destination: 'Kualanamu', distanceMeters: 38000, pricePerMeter: 2, price: 76000 },
@@ -11,39 +18,55 @@ export const dummyRoutes: Route[] = [
   { id: 'r8', name: 'Medan → Kisaran', rayon: 'D', origin: 'Medan', destination: 'Kisaran', distanceMeters: 195000, pricePerMeter: 1.3, price: 253500 },
 ];
 
+// Helper to calculate distanceToDestination and price
+const pt = (id: string, routeId: string, code: string, name: string, order: number, lat: number, lng: number, distFromPrev: number, cumDist: number, totalDist: number, ppm: number): RoutePoint => ({
+  id, routeId, code, name, order, lat, lng,
+  distanceFromPrevious: distFromPrev,
+  cumulativeDistance: cumDist,
+  distanceToDestination: totalDist - cumDist,
+  price: Math.round((totalDist - cumDist) * ppm),
+});
+
 export const dummyRoutePoints: RoutePoint[] = [
-  // r1: Hermes → Kualanamu (38km, Rp2/m)
-  { id: 'rp1', routeId: 'r1', code: 'J1', name: 'Terminal Hermes', order: 1, lat: 3.5952, lng: 98.6722, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
-  { id: 'rp2', routeId: 'r1', code: 'J2', name: 'Simpang Pos', order: 2, lat: 3.5880, lng: 98.6850, distanceFromPrevious: 5000, cumulativeDistance: 5000, price: 10000 },
-  { id: 'rp3', routeId: 'r1', code: 'J3', name: 'Tembung', order: 3, lat: 3.5750, lng: 98.7200, distanceFromPrevious: 8000, cumulativeDistance: 13000, price: 26000 },
-  { id: 'rp4', routeId: 'r1', code: 'J4', name: 'Batang Kuis', order: 4, lat: 3.5400, lng: 98.7600, distanceFromPrevious: 12000, cumulativeDistance: 25000, price: 50000 },
-  { id: 'rp5', routeId: 'r1', code: 'J5', name: 'Bandara Kualanamu', order: 5, lat: 3.6422, lng: 98.8853, distanceFromPrevious: 13000, cumulativeDistance: 38000, price: 76000 },
+  // r1: Hermes → Kualanamu (38km, Rp2/m) — price = distToDestination * 2
+  pt('rp1', 'r1', 'J1', 'Terminal Hermes', 1, 3.5952, 98.6722, 0, 0, 38000, 2),           // 38000m → Rp76.000
+  pt('rp2', 'r1', 'J2', 'Simpang Pos', 2, 3.5880, 98.6850, 5000, 5000, 38000, 2),          // 33000m → Rp66.000
+  pt('rp3', 'r1', 'J3', 'Tembung', 3, 3.5750, 98.7200, 8000, 13000, 38000, 2),             // 25000m → Rp50.000
+  pt('rp4', 'r1', 'J4', 'Batang Kuis', 4, 3.5400, 98.7600, 12000, 25000, 38000, 2),        // 13000m → Rp26.000
+  pt('rp5', 'r1', 'J5', 'Bandara Kualanamu', 5, 3.6422, 98.8853, 13000, 38000, 38000, 2),  // 0m → Rp0 (tujuan)
+
   // r2: Amplas → Parapat (175km, Rp1.5/m)
-  { id: 'rp6', routeId: 'r2', code: 'J1', name: 'Terminal Amplas', order: 1, lat: 3.5570, lng: 98.6950, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
-  { id: 'rp7', routeId: 'r2', code: 'J2', name: 'Lubuk Pakam', order: 2, lat: 3.5550, lng: 98.8570, distanceFromPrevious: 25000, cumulativeDistance: 25000, price: 37500 },
-  { id: 'rp8', routeId: 'r2', code: 'J3', name: 'Tebing Tinggi', order: 3, lat: 3.3283, lng: 99.1627, distanceFromPrevious: 50000, cumulativeDistance: 75000, price: 112500 },
-  { id: 'rp9', routeId: 'r2', code: 'J4', name: 'Seribu Dolok', order: 4, lat: 2.9000, lng: 99.0500, distanceFromPrevious: 55000, cumulativeDistance: 130000, price: 195000 },
-  { id: 'rp10', routeId: 'r2', code: 'J5', name: 'Parapat', order: 5, lat: 2.6640, lng: 98.9380, distanceFromPrevious: 45000, cumulativeDistance: 175000, price: 262500 },
+  pt('rp6', 'r2', 'J1', 'Terminal Amplas', 1, 3.5570, 98.6950, 0, 0, 175000, 1.5),          // 175000m → Rp262.500
+  pt('rp7', 'r2', 'J2', 'Lubuk Pakam', 2, 3.5550, 98.8570, 25000, 25000, 175000, 1.5),      // 150000m → Rp225.000
+  pt('rp8', 'r2', 'J3', 'Tebing Tinggi', 3, 3.3283, 99.1627, 50000, 75000, 175000, 1.5),    // 100000m → Rp150.000
+  pt('rp9', 'r2', 'J4', 'Seribu Dolok', 4, 2.9000, 99.0500, 55000, 130000, 175000, 1.5),    // 45000m → Rp67.500
+  pt('rp10', 'r2', 'J5', 'Parapat', 5, 2.6640, 98.9380, 45000, 175000, 175000, 1.5),        // 0m → Rp0
+
   // r3: Pinang Baris → Sibolga (280km, Rp1.2/m)
-  { id: 'rp11', routeId: 'r3', code: 'J1', name: 'Pinang Baris', order: 1, lat: 3.6100, lng: 98.6350, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
-  { id: 'rp12', routeId: 'r3', code: 'J2', name: 'Binjai', order: 2, lat: 3.6000, lng: 98.4850, distanceFromPrevious: 22000, cumulativeDistance: 22000, price: 26400 },
-  { id: 'rp13', routeId: 'r3', code: 'J3', name: 'Sibolga', order: 3, lat: 1.7427, lng: 98.7792, distanceFromPrevious: 258000, cumulativeDistance: 280000, price: 336000 },
+  pt('rp11', 'r3', 'J1', 'Pinang Baris', 1, 3.6100, 98.6350, 0, 0, 280000, 1.2),            // 280000m → Rp336.000
+  pt('rp12', 'r3', 'J2', 'Binjai', 2, 3.6000, 98.4850, 22000, 22000, 280000, 1.2),           // 258000m → Rp309.600
+  pt('rp13', 'r3', 'J3', 'Sibolga', 3, 1.7427, 98.7792, 258000, 280000, 280000, 1.2),        // 0m → Rp0
+
   // r4: Medan → Berastagi (66km, Rp2/m)
-  { id: 'rp14', routeId: 'r4', code: 'J1', name: 'Medan Center', order: 1, lat: 3.5952, lng: 98.6722, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
-  { id: 'rp15', routeId: 'r4', code: 'J2', name: 'Pancur Batu', order: 2, lat: 3.4700, lng: 98.5700, distanceFromPrevious: 30000, cumulativeDistance: 30000, price: 60000 },
-  { id: 'rp16', routeId: 'r4', code: 'J3', name: 'Berastagi', order: 3, lat: 3.1972, lng: 98.5081, distanceFromPrevious: 36000, cumulativeDistance: 66000, price: 132000 },
+  pt('rp14', 'r4', 'J1', 'Medan Center', 1, 3.5952, 98.6722, 0, 0, 66000, 2),               // 66000m → Rp132.000
+  pt('rp15', 'r4', 'J2', 'Pancur Batu', 2, 3.4700, 98.5700, 30000, 30000, 66000, 2),        // 36000m → Rp72.000
+  pt('rp16', 'r4', 'J3', 'Berastagi', 3, 3.1972, 98.5081, 36000, 66000, 66000, 2),          // 0m → Rp0
+
   // r5: Medan → P. Siantar (128km, Rp1.5/m)
-  { id: 'rp17', routeId: 'r5', code: 'J1', name: 'Medan Timur', order: 1, lat: 3.6000, lng: 98.7000, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
-  { id: 'rp18', routeId: 'r5', code: 'J2', name: 'P. Siantar', order: 2, lat: 2.9540, lng: 99.0478, distanceFromPrevious: 128000, cumulativeDistance: 128000, price: 192000 },
+  pt('rp17', 'r5', 'J1', 'Medan Timur', 1, 3.6000, 98.7000, 0, 0, 128000, 1.5),            // 128000m → Rp192.000
+  pt('rp18', 'r5', 'J2', 'P. Siantar', 2, 2.9540, 99.0478, 128000, 128000, 128000, 1.5),   // 0m → Rp0
+
   // r6: Medan → Rantau Prapat (285km, Rp1.2/m)
-  { id: 'rp19', routeId: 'r6', code: 'J1', name: 'Medan Barat', order: 1, lat: 3.5900, lng: 98.6600, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
-  { id: 'rp20', routeId: 'r6', code: 'J2', name: 'Rantau Prapat', order: 2, lat: 2.0975, lng: 99.8308, distanceFromPrevious: 285000, cumulativeDistance: 285000, price: 342000 },
+  pt('rp19', 'r6', 'J1', 'Medan Barat', 1, 3.5900, 98.6600, 0, 0, 285000, 1.2),            // 285000m → Rp342.000
+  pt('rp20', 'r6', 'J2', 'Rantau Prapat', 2, 2.0975, 99.8308, 285000, 285000, 285000, 1.2),// 0m → Rp0
+
   // r7: Medan → Padang Sidempuan (390km, Rp1/m)
-  { id: 'rp21', routeId: 'r7', code: 'J1', name: 'Medan Selatan', order: 1, lat: 3.5800, lng: 98.6800, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
-  { id: 'rp22', routeId: 'r7', code: 'J2', name: 'Padang Sidempuan', order: 2, lat: 1.3790, lng: 99.2718, distanceFromPrevious: 390000, cumulativeDistance: 390000, price: 390000 },
+  pt('rp21', 'r7', 'J1', 'Medan Selatan', 1, 3.5800, 98.6800, 0, 0, 390000, 1),            // 390000m → Rp390.000
+  pt('rp22', 'r7', 'J2', 'Padang Sidempuan', 2, 1.3790, 99.2718, 390000, 390000, 390000, 1),// 0m → Rp0
+
   // r8: Medan → Kisaran (195km, Rp1.3/m)
-  { id: 'rp23', routeId: 'r8', code: 'J1', name: 'Medan Utara', order: 1, lat: 3.6200, lng: 98.6700, distanceFromPrevious: 0, cumulativeDistance: 0, price: 0 },
-  { id: 'rp24', routeId: 'r8', code: 'J2', name: 'Kisaran', order: 2, lat: 2.9833, lng: 99.6167, distanceFromPrevious: 195000, cumulativeDistance: 195000, price: 253500 },
+  pt('rp23', 'r8', 'J1', 'Medan Utara', 1, 3.6200, 98.6700, 0, 0, 195000, 1.3),            // 195000m → Rp253.500
+  pt('rp24', 'r8', 'J2', 'Kisaran', 2, 2.9833, 99.6167, 195000, 195000, 195000, 1.3),      // 0m → Rp0
 ];
 
 export const dummyDrivers: Driver[] = [
@@ -77,8 +100,8 @@ export const dummySchedules: Schedule[] = [
 
 export const dummyBookings: Booking[] = [
   { id: 'b1', userId: 'u1', userName: 'Siti Aminah', scheduleId: 's1', routeId: 'r1', routeName: 'Hermes → Kualanamu', pickupPointId: 'rp1', pickupPointName: 'Terminal Hermes', seatNumber: 1, price: 76000, status: 'confirmed', bookingDate: '2026-04-02', departureTime: '07:00', paymentStatus: 'paid', paymentMethod: 'bank_transfer' },
-  { id: 'b2', userId: 'u1', userName: 'Siti Aminah', scheduleId: 's1', routeId: 'r1', routeName: 'Hermes → Kualanamu', pickupPointId: 'rp2', pickupPointName: 'Simpang Pos', seatNumber: 3, price: 76000, status: 'confirmed', bookingDate: '2026-04-02', departureTime: '07:00', paymentStatus: 'paid', paymentMethod: 'ewallet' },
-  { id: 'b3', userId: 'u2', userName: 'Rudi Hartono', scheduleId: 's1', routeId: 'r1', routeName: 'Hermes → Kualanamu', pickupPointId: 'rp3', pickupPointName: 'Tembung', seatNumber: 5, price: 76000, status: 'confirmed', bookingDate: '2026-04-02', departureTime: '07:00', paymentStatus: 'paid', paymentMethod: 'qris' },
+  { id: 'b2', userId: 'u1', userName: 'Siti Aminah', scheduleId: 's1', routeId: 'r1', routeName: 'Hermes → Kualanamu', pickupPointId: 'rp2', pickupPointName: 'Simpang Pos', seatNumber: 3, price: 66000, status: 'confirmed', bookingDate: '2026-04-02', departureTime: '07:00', paymentStatus: 'paid', paymentMethod: 'ewallet' },
+  { id: 'b3', userId: 'u2', userName: 'Rudi Hartono', scheduleId: 's1', routeId: 'r1', routeName: 'Hermes → Kualanamu', pickupPointId: 'rp3', pickupPointName: 'Tembung', seatNumber: 5, price: 50000, status: 'confirmed', bookingDate: '2026-04-02', departureTime: '07:00', paymentStatus: 'paid', paymentMethod: 'qris' },
   { id: 'b4', userId: 'u3', userName: 'Linda Susanti', scheduleId: 's4', routeId: 'r2', routeName: 'Amplas → Parapat', pickupPointId: 'rp6', pickupPointName: 'Terminal Amplas', seatNumber: 2, price: 262500, status: 'confirmed', bookingDate: '2026-04-02', departureTime: '08:00', paymentStatus: 'pending', paymentMethod: null },
   { id: 'b5', userId: 'u1', userName: 'Siti Aminah', scheduleId: 's6', routeId: 'r3', routeName: 'Pinang Baris → Sibolga', pickupPointId: 'rp11', pickupPointName: 'Pinang Baris', seatNumber: 1, price: 336000, status: 'completed', bookingDate: '2026-04-01', departureTime: '06:00', paymentStatus: 'paid', paymentMethod: 'bank_transfer' },
 ];
