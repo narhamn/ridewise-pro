@@ -242,16 +242,17 @@ const AdminRoutes = () => {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            <h1 className="text-2xl font-bold">
-              {selectedRouteId ? selectedRoute?.name : 'Kelola Rute & Harga'}
-            </h1>
-          </div>
-          {!selectedRouteId && (
-            <TabsList>
-              <TabsTrigger value="routes"><MapPin className="h-4 w-4 mr-1" />Rute</TabsTrigger>
-              <TabsTrigger value="pricing"><Settings className="h-4 w-4 mr-1" />Pengaturan Harga</TabsTrigger>
-            </TabsList>
-          )}
+             <h1 className="text-2xl font-bold">
+               {selectedRouteId ? selectedRoute?.name : 'Rute, Jadwal & Harga'}
+             </h1>
+           </div>
+           {!selectedRouteId && (
+             <TabsList>
+               <TabsTrigger value="routes"><MapPin className="h-4 w-4 mr-1" />Rute</TabsTrigger>
+               <TabsTrigger value="schedules"><CalendarDays className="h-4 w-4 mr-1" />Jadwal</TabsTrigger>
+               <TabsTrigger value="pricing"><Settings className="h-4 w-4 mr-1" />Harga</TabsTrigger>
+             </TabsList>
+           )}
         </div>
 
         {/* === PRICING SETTINGS TAB === */}
