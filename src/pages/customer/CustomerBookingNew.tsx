@@ -163,7 +163,7 @@ const CustomerBookingNew = () => {
       <PaymentModal
         open={showPayment}
         onClose={() => setShowPayment(false)}
-        amount={route.price}
+        amount={selectedPickup ? (points.find(p => p.id === selectedPickup)?.price || route.price) : route.price}
         onConfirm={handlePaymentConfirm}
       />
     </div>
