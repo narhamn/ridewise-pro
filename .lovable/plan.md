@@ -1,59 +1,42 @@
 
 
-# Merger: Manajemen Rute + Titik Jemput
+# Logika Harga: Jarak ke Tujuan Akhir + Pengaturan Harga
 
-## Analisa Saat Ini
+## Perubahan Logika Harga
 
-**Masalah**: Rute dan Titik Jemput dikelola di 2 halaman terpisah (`AdminRoutes` dan `AdminPoints`), padahal titik jemput selalu milik sebuah rute. Ini memaksa admin bolak-balik antar halaman.
+**Saat ini**: Harga = jarak kumulatif dari asal × Rp/m (semakin jauh dari asal, semakin mahal)
+**Yang diminta**: Harga = jarak dari titik jemput ke tujuan akhir × Rp/m (semakin dekat ke tujuan, semakin murah)
 
-**Data saat ini**:
-- `Route`: punya `distanceMeters` dan `pricePerMeter` di level rute (jarak total)
-- `RoutePoint`: hanya punya `code`, `name`, `order`, `lat`, `lng` — tidak punya jarak/harga sendiri
-
-## Perubahan yang Direncanakan
-
-### 1. Update Type `RoutePoint` — tambah jarak & harga per titik
-Setiap titik jemput akan punya `distanceMeters` (jarak dari titik sebelumnya) dan `price` (harga dari asal ke titik ini). Harga rute total dihitung otomatis dari titik terakhir.
-
+Contoh rute Hermes → Kualanamu (38 km, Rp2/m):
 ```text
-RoutePoint {
-  ...existing fields
-  distanceFromPrevious: number  // jarak dari titik sebelumnya (meter)
-  cumulativeDistance: number    // jarak kumulatif dari asal
-  price: number                // harga dari asal ke titik ini
-}
+Titik          Jarak ke KNO    Harga
+J1 (Hermes)    38.000 m        Rp 76.000
+J2 (Simpang)   33.000 m        Rp 66.000
+J3 (Tembung)   25.000 m        Rp 50.000
+J4 (Btg Kuis)  13.000 m        Rp 26.000
+J5 (KNO)       0 m             — (tujuan)
 ```
 
-### 2. Gabung jadi satu halaman `AdminRoutes`
-Layout baru menggunakan pola **master-detail**:
-- **Kiri/Atas**: Daftar rute (card per rute dengan info rayon, asal-tujuan, total jarak, total harga)
-- **Kanan/Bawah**: Saat rute diklik/dipilih, tampilkan tabel titik jemput milik rute tersebut dengan kolom: Kode, Nama, Jarak dari titik sebelumnya, Jarak kumulatif, Harga
-- Tombol tambah/edit/hapus titik jemput langsung di dalam detail rute
-- Dialog tambah rute tetap ada, tapi `distanceMeters` dan `price` di Route dihitung otomatis dari titik jemput terakhir
+### Perubahan RoutePoint
+- Tambah field `distanceToDestination` = totalDistance - cumulativeDistance
+- Field `price` dihitung dari `distanceToDestination × pricePerMeter`
+- Titik pertama (asal) = harga tertinggi, titik terakhir (tujuan) = 0
 
-### 3. Hapus halaman & route `AdminPoints`
-- Hapus `AdminPoints` dari `App.tsx` routing
-- Hapus menu "Titik Jemput" dari sidebar `AdminLayout`
-- File `AdminPoints.tsx` tidak lagi digunakan
+### Fitur Pengaturan Harga (Admin)
+Halaman baru atau section di AdminRoutes untuk mengatur:
+- **Harga per meter per rayon** — default rate per rayon (A=Rp2, B=Rp1.5, C=Rp1.2, D=Rp1)
+- **Override per rute** — admin bisa set harga/m khusus per rute
+- **Simulasi harga** — preview harga setiap titik jemput saat rate diubah
+- **Bulk update** — saat rate rayon berubah, semua rute di rayon itu ter-update otomatis
 
-### 4. Update dummy data
-- Tambah `distanceFromPrevious`, `cumulativeDistance`, `price` ke setiap `RoutePoint` di `dummy.ts`
-- Harga dihitung proporsional berdasarkan jarak kumulatif x `pricePerMeter` rute
-
-### 5. Update referensi lain
-- Customer booking flow (`CustomerBookingNew`, `CustomerRouteDetail`) yang menampilkan titik jemput — tampilkan harga per titik jemput, bukan harga flat rute
-- Booking `price` akan mengambil harga dari titik jemput yang dipilih, bukan dari rute
-
-## Dampak File
+## File yang Diubah
 
 | File | Aksi |
 |------|------|
-| `src/types/shuttle.ts` | Update `RoutePoint` interface |
-| `src/data/dummy.ts` | Tambah field baru ke data dummy |
-| `src/pages/admin/AdminRoutes.tsx` | Rewrite — gabung rute + titik jemput |
-| `src/pages/admin/AdminPoints.tsx` | Tidak digunakan lagi |
-| `src/layouts/AdminLayout.tsx` | Hapus menu "Titik Jemput" |
-| `src/App.tsx` | Hapus route `/admin/points` |
-| `src/pages/customer/CustomerRouteDetail.tsx` | Tampilkan harga per titik |
-| `src/pages/customer/CustomerBookingNew.tsx` | Harga dari titik jemput |
+| `src/types/shuttle.ts` | Tambah `distanceToDestination` ke RoutePoint |
+| `src/data/dummy.ts` | Recalculate semua harga dummy (jarak ke tujuan) |
+| `src/pages/admin/AdminRoutes.tsx` | Update logika hitung harga + tambah section pengaturan harga |
+| `src/pages/customer/CustomerBookingNew.tsx` | Sesuaikan tampilan harga |
+| `src/pages/customer/CustomerRouteDetail.tsx` | Sesuaikan tampilan harga |
+| `src/contexts/ShuttleContext.tsx` | Tambah state rayon pricing config |
 
