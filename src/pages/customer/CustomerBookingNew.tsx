@@ -150,7 +150,7 @@ const CustomerBookingNew = () => {
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-sm text-muted-foreground">Total Harga</p>
-              <p className="text-2xl font-bold text-primary">{formatRupiah(route.price)}</p>
+              <p className="text-2xl font-bold text-primary">{formatRupiah(selectedPickup ? (points.find(p => p.id === selectedPickup)?.price || route.price) : route.price)}</p>
             </div>
             {selectedSeat && <Badge className="bg-primary text-primary-foreground">Kursi #{selectedSeat}</Badge>}
           </div>
