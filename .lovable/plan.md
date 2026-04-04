@@ -1,42 +1,53 @@
 
 
-# Logika Harga: Jarak ke Tujuan Akhir + Pengaturan Harga
+# Logika Driver Mendapatkan Penumpang (Terjadwal + Realtime)
 
-## Perubahan Logika Harga
+## Konsep
 
-**Saat ini**: Harga = jarak kumulatif dari asal × Rp/m (semakin jauh dari asal, semakin mahal)
-**Yang diminta**: Harga = jarak dari titik jemput ke tujuan akhir × Rp/m (semakin dekat ke tujuan, semakin murah)
+Saat ini driver hanya melihat penumpang yang sudah booking via jadwal. Fitur baru menambahkan kemampuan driver untuk **menambah penumpang secara langsung (realtime)** di perjalanan yang sedang berjalan — mirip angkutan umum yang bisa naikkan penumpang di jalan.
 
-Contoh rute Hermes → Kualanamu (38 km, Rp2/m):
-```text
-Titik          Jarak ke KNO    Harga
-J1 (Hermes)    38.000 m        Rp 76.000
-J2 (Simpang)   33.000 m        Rp 66.000
-J3 (Tembung)   25.000 m        Rp 50.000
-J4 (Btg Kuis)  13.000 m        Rp 26.000
-J5 (KNO)       0 m             — (tujuan)
-```
+## Perubahan
 
-### Perubahan RoutePoint
-- Tambah field `distanceToDestination` = totalDistance - cumulativeDistance
-- Field `price` dihitung dari `distanceToDestination × pricePerMeter`
-- Titik pertama (asal) = harga tertinggi, titik terakhir (tujuan) = 0
+### 1. Update Type — Tandai booking terjadwal vs realtime
+**File:** `src/types/shuttle.ts`
+- Tambah field `bookingType: 'scheduled' | 'realtime'` ke interface `Booking`
+- Booking dari customer app = `scheduled`, booking dari driver = `realtime`
 
-### Fitur Pengaturan Harga (Admin)
-Halaman baru atau section di AdminRoutes untuk mengatur:
-- **Harga per meter per rayon** — default rate per rayon (A=Rp2, B=Rp1.5, C=Rp1.2, D=Rp1)
-- **Override per rute** — admin bisa set harga/m khusus per rute
-- **Simulasi harga** — preview harga setiap titik jemput saat rate diubah
-- **Bulk update** — saat rate rayon berubah, semua rute di rayon itu ter-update otomatis
+### 2. Fitur "Tambah Penumpang" di DriverTripDetail
+**File:** `src/pages/driver/DriverTripDetail.tsx`
+- Tambah tombol **"+ Tambah Penumpang"** (hanya muncul saat status `departed` atau `boarding`)
+- Dialog form: Nama penumpang, Pilih titik jemput (dropdown dari route points), Pilih kursi kosong
+- Harga otomatis dihitung dari titik jemput yang dipilih (distanceToDestination × pricePerMeter)
+- Metode bayar: Cash / QRIS (bayar langsung ke driver)
+- Booking baru dibuat dengan `bookingType: 'realtime'`, `paymentStatus: 'paid'`
+- Peta kursi dan daftar penumpang langsung ter-update
 
-## File yang Diubah
+### 3. Bedakan tampilan penumpang terjadwal vs realtime
+**File:** `src/pages/driver/DriverTripDetail.tsx`
+- Di daftar penumpang, tambah badge **"Terjadwal"** (biru) atau **"Realtime"** (hijau/orange) 
+- Driver bisa lihat mana penumpang yang sudah booking dan mana yang naik di jalan
+
+### 4. Update Context — fungsi addBooking sudah ada, cukup dipakai
+**File:** `src/contexts/ShuttleContext.tsx`
+- Tidak perlu perubahan besar, `addBooking` sudah tersedia
+- Pastikan booking realtime juga masuk ke daftar bookings global
+
+### 5. Update dummy data
+**File:** `src/data/dummy.ts`
+- Tambah `bookingType: 'scheduled'` ke semua booking dummy yang ada
+
+### 6. Update referensi booking lainnya
+**File:** `src/pages/customer/CustomerBookingNew.tsx`, `src/pages/admin/AdminBookings.tsx`
+- Set `bookingType: 'scheduled'` saat customer booking
+- Admin bookings: tampilkan kolom/badge tipe booking
+
+## Dampak File
 
 | File | Aksi |
 |------|------|
-| `src/types/shuttle.ts` | Tambah `distanceToDestination` ke RoutePoint |
-| `src/data/dummy.ts` | Recalculate semua harga dummy (jarak ke tujuan) |
-| `src/pages/admin/AdminRoutes.tsx` | Update logika hitung harga + tambah section pengaturan harga |
-| `src/pages/customer/CustomerBookingNew.tsx` | Sesuaikan tampilan harga |
-| `src/pages/customer/CustomerRouteDetail.tsx` | Sesuaikan tampilan harga |
-| `src/contexts/ShuttleContext.tsx` | Tambah state rayon pricing config |
+| `src/types/shuttle.ts` | Tambah `bookingType` ke Booking |
+| `src/data/dummy.ts` | Tambah `bookingType: 'scheduled'` ke dummy |
+| `src/pages/driver/DriverTripDetail.tsx` | Tambah dialog "Tambah Penumpang" + badge tipe |
+| `src/pages/customer/CustomerBookingNew.tsx` | Set `bookingType: 'scheduled'` |
+| `src/pages/admin/AdminBookings.tsx` | Tampilkan badge tipe booking |
 
