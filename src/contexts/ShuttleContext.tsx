@@ -19,6 +19,7 @@ interface ShuttleContextType {
   addRideRequest: (request: RideRequest) => void;
   acceptRideRequest: (requestId: string) => void;
   rejectRideRequest: (requestId: string) => void;
+  checkInPassenger: (bookingId: string) => void;
   setRoutes: React.Dispatch<React.SetStateAction<Route[]>>;
   setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
   setSchedules: React.Dispatch<React.SetStateAction<Schedule[]>>;
