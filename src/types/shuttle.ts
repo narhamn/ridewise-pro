@@ -147,3 +147,92 @@ export interface PaymentConfig {
   environment: 'sandbox' | 'production';
   enabled: boolean;
 }
+
+// ========== Pickup Point Management ==========
+
+export interface PickupPoint {
+  id: string;
+  code: string; // Unique code like PK-001
+  name: string; // Location name
+  rayon: 'A' | 'B' | 'C' | 'D'; // Zone
+  address: string; // Full address
+  city: string;
+  district: string;
+  lat: number; // Latitude
+  lng: number; // Longitude
+  phone: string; // Contact number
+  contactPerson: string; // Contact name
+  isActive: boolean;
+  description?: string;
+  estimatedWaitTime?: number; // Minutes
+  maxCapacity?: number; // Simultaneous passengers
+  facilities?: string[]; // WiFi, Toilet, etc
+  operatingHours?: {
+    open: string; // HH:mm
+    close: string; // HH:mm
+  };
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string; // User ID
+  updatedBy: string; // User ID
+}
+
+export interface Rayon {
+  id: string;
+  code: 'A' | 'B' | 'C' | 'D';
+  name: string;
+  label: string;
+  description: string;
+  pricePerMeter: number;
+  coverage: string; // Coverage area description
+  pickupPointCount: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RouteSequence {
+  id: string;
+  routeId: string;
+  pickupPointId: string;
+  sequenceOrder: number;
+  estimatedTimeFromPrevious: number; // Minutes
+  estimatedDistanceFromPrevious: number; // Meters
+  cumulativeTime: number; // Minutes from start
+  cumulativeDistance: number; // Meters from start
+  price: number; // Price from this point to destination
+}
+
+export interface ActivityLog {
+  id: string;
+  entityType: 'pickup_point' | 'rayon' | 'route_sequence' | 'schedule' | 'booking';
+  entityId: string;
+  entityName: string;
+  action: 'create' | 'update' | 'delete' | 'activate' | 'deactivate';
+  changes: Record<string, { oldValue: any; newValue: any }>;
+  userId: string;
+  userName: string;
+  timestamp: string;
+  ipAddress?: string;
+  details?: string;
+}
+
+export interface MapMarker {
+  id: string;
+  lat: number;
+  lng: number;
+  name: string;
+  type: 'pickup_point' | 'route_start' | 'route_end' | 'waypoint';
+  rayon: 'A' | 'B' | 'C' | 'D';
+  isActive: boolean;
+  icon?: string;
+}
+
+export interface ExportData {
+  format: 'excel' | 'pdf';
+  entityType: 'pickup_points' | 'rayons' | 'routes' | 'activity_logs';
+  filters?: Record<string, any>;
+  columns?: string[];
+  generatedAt: string;
+  generatedBy: string;
+}

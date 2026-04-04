@@ -31,7 +31,9 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminRoutes from "./pages/admin/AdminRoutes";
-
+import AdminPickupPoints from "./pages/admin/AdminPickupPoints";
+import AdminRayons from "./pages/admin/AdminRayons";
+import AdminRouteManagement from "./pages/admin/AdminRouteManagement";
 
 import AdminDrivers from "./pages/admin/AdminDrivers";
 import AdminVehicles from "./pages/admin/AdminVehicles";
@@ -82,6 +84,9 @@ const App = () => (
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="routes" element={<AdminRoutes />} />
+                <Route path="route-management" element={<AdminRouteManagement />} />
+                <Route path="pickup-points" element={<AdminPickupPoints />} />
+                <Route path="rayons" element={<AdminRayons />} />
                 
                 <Route path="drivers" element={<AdminDrivers />} />
                 <Route path="vehicles" element={<AdminVehicles />} />
