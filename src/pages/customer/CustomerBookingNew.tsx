@@ -84,6 +84,7 @@ const CustomerBookingNew = () => {
         </CardHeader>
         <CardContent className="space-y-1 text-sm">
           <p><span className="text-muted-foreground">Rute:</span> {route.name}</p>
+          <p><span className="text-muted-foreground">Tanggal:</span> {schedule.departureDate}</p>
           <p><span className="text-muted-foreground">Waktu:</span> {schedule.departureTime}</p>
           <p><span className="text-muted-foreground">Kendaraan:</span> {vehicle.name} ({vehicle.plateNumber})</p>
           <p><span className="text-muted-foreground">Harga mulai:</span> <span className="font-bold text-primary">{formatRupiah(points.filter(p => p.distanceToDestination > 0).sort((a, b) => a.price - b.price)[0]?.price || route.price)} — {formatRupiah(route.price)}</span></p>

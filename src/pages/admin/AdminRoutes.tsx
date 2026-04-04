@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
+import { id as localeId } from 'date-fns/locale';
 import { useShuttle } from '@/contexts/ShuttleContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,10 +11,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, MapPin, ChevronRight, ArrowLeft, Settings, RefreshCw, CalendarDays } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Plus, Pencil, Trash2, MapPin, ChevronRight, ArrowLeft, Settings, RefreshCw, CalendarDays, CalendarIcon } from 'lucide-react';
 import { formatRupiah } from '@/data/dummy';
 import { toast } from 'sonner';
 import { Route, RoutePoint } from '@/types/shuttle';
+import { cn } from '@/lib/utils';
 
 const AdminRoutes = () => {
   const { routes, setRoutes, routePoints, setRoutePoints, rayonPricing, setRayonPricing, recalcRoutePointPrices, schedules, setSchedules, vehicles } = useShuttle();
@@ -24,7 +29,8 @@ const AdminRoutes = () => {
   const [routeForm, setRouteForm] = useState({ name: '', rayon: 'A' as Route['rayon'], origin: '', destination: '', pricePerMeter: 2 });
   const [pointForm, setPointForm] = useState({ code: '', name: '', distanceFromPrevious: 0, lat: 3.5952, lng: 98.6722 });
   const [openSchedule, setOpenSchedule] = useState(false);
-  const [scheduleForm, setScheduleForm] = useState({ routeId: '', departureTime: '', vehicleId: '' });
+  const [scheduleForm, setScheduleForm] = useState({ routeId: '', departureDate: '', departureTime: '', vehicleId: '' });
+  const [scheduleDatePicker, setScheduleDatePicker] = useState<Date | undefined>(undefined);
 
   const selectedRoute = routes.find(r => r.id === selectedRouteId);
   const points = routePoints.filter(p => p.routeId === selectedRouteId).sort((a, b) => a.order - b.order);
@@ -95,7 +101,7 @@ const AdminRoutes = () => {
     toast.success('Rute dihapus');
   };
 
-  // --- Point CRUD (price = distanceToDestination * pricePerMeter) ---
+  // --- Point CRUD ---
   const openNewPoint = () => {
     setEditingPoint(null);
     setPointForm({ code: '', name: '', distanceFromPrevious: 0, lat: 3.5952, lng: 98.6722 });
@@ -109,15 +115,12 @@ const AdminRoutes = () => {
 
   const recalcAllPoints = (routeId: string, allPoints: RoutePoint[], pricePerMeter: number): RoutePoint[] => {
     const routePts = allPoints.filter(p => p.routeId === routeId).sort((a, b) => a.order - b.order);
-    // First pass: cumulative distances
     let cumDist = 0;
     const withCum = routePts.map(p => {
       cumDist += p.distanceFromPrevious;
       return { ...p, cumulativeDistance: cumDist };
     });
-    // Total distance = last point's cumulative
     const totalDist = withCum.length > 0 ? withCum[withCum.length - 1].cumulativeDistance : 0;
-    // Second pass: distanceToDestination and price
     return withCum.map(p => ({
       ...p,
       distanceToDestination: totalDist - p.cumulativeDistance,
@@ -131,9 +134,7 @@ const AdminRoutes = () => {
     const route = routes.find(r => r.id === routeId);
     if (route) {
       setRoutes(prev => prev.map(r => r.id === routeId ? {
-        ...r,
-        distanceMeters: totalDist,
-        price: Math.round(totalDist * r.pricePerMeter),
+        ...r, distanceMeters: totalDist, price: Math.round(totalDist * r.pricePerMeter),
       } : r));
     }
   };
@@ -141,7 +142,6 @@ const AdminRoutes = () => {
   const handleSavePoint = () => {
     if (!selectedRouteId || !selectedRoute) return;
     const pricePerMeter = selectedRoute.pricePerMeter;
-
     if (editingPoint) {
       const updated = routePoints.map(p => p.id === editingPoint.id ? { ...p, ...pointForm } : p);
       const recalculated = recalcAllPoints(selectedRouteId, updated, pricePerMeter);
@@ -157,17 +157,9 @@ const AdminRoutes = () => {
       const prevCumDist = points.length > 0 ? points[points.length - 1].cumulativeDistance : 0;
       const cumDist = prevCumDist + pointForm.distanceFromPrevious;
       const newPoint: RoutePoint = {
-        id: `rp${Date.now()}`,
-        routeId: selectedRouteId,
-        code: pointForm.code,
-        name: pointForm.name,
-        order: newOrder,
-        lat: pointForm.lat,
-        lng: pointForm.lng,
-        distanceFromPrevious: pointForm.distanceFromPrevious,
-        cumulativeDistance: cumDist,
-        distanceToDestination: 0,
-        price: 0,
+        id: `rp${Date.now()}`, routeId: selectedRouteId, code: pointForm.code, name: pointForm.name,
+        order: newOrder, lat: pointForm.lat, lng: pointForm.lng, distanceFromPrevious: pointForm.distanceFromPrevious,
+        cumulativeDistance: cumDist, distanceToDestination: 0, price: 0,
       };
       const allPts = [...routePoints, newPoint];
       const recalculated = recalcAllPoints(selectedRouteId, allPts, pricePerMeter);
@@ -186,7 +178,6 @@ const AdminRoutes = () => {
     if (!selectedRouteId || !selectedRoute) return;
     const pricePerMeter = selectedRoute.pricePerMeter;
     const remaining = routePoints.filter(p => p.id !== id && p.routeId === selectedRouteId).sort((a, b) => a.order - b.order);
-    // Reorder
     let cumDist = 0;
     const reordered = remaining.map((p, i) => {
       const dist = i === 0 ? 0 : p.distanceFromPrevious;
@@ -195,8 +186,7 @@ const AdminRoutes = () => {
     });
     const totalDist = reordered.length > 0 ? reordered[reordered.length - 1].cumulativeDistance : 0;
     const recalculated = reordered.map(p => ({
-      ...p,
-      distanceToDestination: totalDist - p.cumulativeDistance,
+      ...p, distanceToDestination: totalDist - p.cumulativeDistance,
       price: Math.round((totalDist - p.cumulativeDistance) * pricePerMeter),
     }));
     setRoutePoints(prev => {
@@ -208,29 +198,46 @@ const AdminRoutes = () => {
     toast.success('Titik jemput dihapus');
   };
 
-  // Simulate prices for a route with a given pricePerMeter
   const getSimulatedPrices = (routeId: string, ppm: number) => {
     const pts = routePoints.filter(p => p.routeId === routeId).sort((a, b) => a.order - b.order);
     const totalDist = pts.length > 0 ? pts[pts.length - 1].cumulativeDistance : 0;
     return pts.map(p => ({
-      ...p,
-      distanceToDestination: totalDist - p.cumulativeDistance,
+      ...p, distanceToDestination: totalDist - p.cumulativeDistance,
       simulatedPrice: Math.round((totalDist - p.cumulativeDistance) * ppm),
     }));
   };
 
   // --- Schedule CRUD ---
   const handleSaveSchedule = () => {
-    setSchedules(prev => [...prev, { id: `s${Date.now()}`, ...scheduleForm, driverId: null, status: 'scheduled' as const }]);
+    if (!scheduleForm.departureDate) {
+      toast.error('Pilih tanggal berangkat!');
+      return;
+    }
+    setSchedules(prev => [...prev, {
+      id: `s${Date.now()}`,
+      routeId: scheduleForm.routeId,
+      departureDate: scheduleForm.departureDate,
+      departureTime: scheduleForm.departureTime,
+      vehicleId: scheduleForm.vehicleId,
+      driverId: null,
+      status: 'scheduled' as const,
+    }]);
     toast.success('Jadwal ditambahkan');
     setOpenSchedule(false);
-    setScheduleForm({ routeId: '', departureTime: '', vehicleId: '' });
+    setScheduleForm({ routeId: '', departureDate: '', departureTime: '', vehicleId: '' });
+    setScheduleDatePicker(undefined);
   };
 
   const handleDeleteSchedule = (id: string) => {
     setSchedules(prev => prev.filter(s => s.id !== id));
     toast.success('Jadwal dihapus');
   };
+
+  const sortedSchedules = [...schedules].sort((a, b) => {
+    const dateComp = a.departureDate.localeCompare(b.departureDate);
+    if (dateComp !== 0) return dateComp;
+    return a.departureTime.localeCompare(b.departureTime);
+  });
 
   return (
     <div className="space-y-4">
@@ -281,13 +288,8 @@ const AdminRoutes = () => {
                         <TableCell><Badge variant="outline" className="font-bold">Rayon {rp.rayon}</Badge></TableCell>
                         <TableCell className="text-sm">{rp.label}</TableCell>
                         <TableCell>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            className="w-28"
-                            value={rp.pricePerMeter}
-                            onChange={e => handleRayonPriceChange(rp.rayon, Number(e.target.value))}
-                          />
+                          <Input type="number" step="0.1" className="w-28" value={rp.pricePerMeter}
+                            onChange={e => handleRayonPriceChange(rp.rayon, Number(e.target.value))} />
                         </TableCell>
                         <TableCell>{routeCount} rute</TableCell>
                         <TableCell>
@@ -303,7 +305,6 @@ const AdminRoutes = () => {
             </CardContent>
           </Card>
 
-          {/* Price Simulation */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Simulasi Harga per Rute</CardTitle>
@@ -343,7 +344,6 @@ const AdminRoutes = () => {
 
         {/* === ROUTES TAB === */}
         <TabsContent value="routes" className="space-y-4">
-          {/* Master: Route List */}
           {!selectedRouteId && (
             <>
               <div className="flex justify-end">
@@ -397,7 +397,6 @@ const AdminRoutes = () => {
             </>
           )}
 
-          {/* Detail: Points for selected route */}
           {selectedRouteId && selectedRoute && (
             <div className="space-y-3">
               <Card>
@@ -457,7 +456,7 @@ const AdminRoutes = () => {
                     </TableHeader>
                     <TableBody>
                       {points.length === 0 ? (
-                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Belum ada titik jemput. Klik "Tambah Titik" untuk menambahkan.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Belum ada titik jemput.</TableCell></TableRow>
                       ) : points.map(p => (
                         <TableRow key={p.id}>
                           <TableCell className="text-muted-foreground">{p.order}</TableCell>
@@ -465,15 +464,9 @@ const AdminRoutes = () => {
                           <TableCell>{p.name}</TableCell>
                           <TableCell>{p.order === 1 ? '—' : `${(p.distanceFromPrevious / 1000).toFixed(1)} km`}</TableCell>
                           <TableCell>
-                            {p.distanceToDestination === 0 ? (
-                              <Badge variant="secondary">Tujuan</Badge>
-                            ) : (
-                              `${(p.distanceToDestination / 1000).toFixed(1)} km`
-                            )}
+                            {p.distanceToDestination === 0 ? <Badge variant="secondary">Tujuan</Badge> : `${(p.distanceToDestination / 1000).toFixed(1)} km`}
                           </TableCell>
-                          <TableCell className="font-medium">
-                            {p.distanceToDestination === 0 ? '—' : formatRupiah(p.price)}
-                          </TableCell>
+                          <TableCell className="font-medium">{p.distanceToDestination === 0 ? '—' : formatRupiah(p.price)}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" onClick={() => openEditPoint(p)}><Pencil className="h-4 w-4" /></Button>
@@ -504,6 +497,29 @@ const AdminRoutes = () => {
                       <SelectContent>{routes.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label>Tanggal Berangkat</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !scheduleDatePicker && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {scheduleDatePicker ? format(scheduleDatePicker, 'dd MMMM yyyy', { locale: localeId }) : 'Pilih tanggal'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={scheduleDatePicker}
+                          onSelect={(date) => {
+                            setScheduleDatePicker(date);
+                            if (date) setScheduleForm({ ...scheduleForm, departureDate: format(date, 'yyyy-MM-dd') });
+                          }}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                   <div><Label>Jam Berangkat</Label><Input type="time" value={scheduleForm.departureTime} onChange={e => setScheduleForm({...scheduleForm, departureTime: e.target.value})} /></div>
                   <div><Label>Kendaraan</Label>
                     <Select value={scheduleForm.vehicleId} onValueChange={v => setScheduleForm({...scheduleForm, vehicleId: v})}>
@@ -523,6 +539,7 @@ const AdminRoutes = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Rute</TableHead>
+                    <TableHead>Tanggal</TableHead>
                     <TableHead>Waktu</TableHead>
                     <TableHead>Kendaraan</TableHead>
                     <TableHead>Status</TableHead>
@@ -530,9 +547,10 @@ const AdminRoutes = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schedules.map(s => (
+                  {sortedSchedules.map(s => (
                     <TableRow key={s.id}>
                       <TableCell>{routes.find(r => r.id === s.routeId)?.name}</TableCell>
+                      <TableCell className="font-mono text-sm">{s.departureDate}</TableCell>
                       <TableCell className="font-mono">{s.departureTime}</TableCell>
                       <TableCell>{vehicles.find(v => v.id === s.vehicleId)?.name}</TableCell>
                       <TableCell><Badge variant="secondary">{s.status}</Badge></TableCell>
