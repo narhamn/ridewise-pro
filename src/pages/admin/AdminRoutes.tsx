@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, MapPin, ChevronRight, ArrowLeft, Settings, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Trash2, MapPin, ChevronRight, ArrowLeft, Settings, RefreshCw, CalendarDays } from 'lucide-react';
 import { formatRupiah } from '@/data/dummy';
 import { toast } from 'sonner';
 import { Route, RoutePoint } from '@/types/shuttle';
