@@ -1,65 +1,60 @@
 
 
-# Review Penggunaan Map — Temuan & Rencana Cleanup
+# Fix Infinite Loop di Admin Tracking
 
-## Temuan
+## Penyebab
 
-### File Map yang Aktif Digunakan (KEEP)
-| File | Digunakan Oleh |
-|------|---------------|
-| `RealTimeMap.tsx` | AdminTracking, CustomerBookingDetail |
-| `MapView.tsx` | DriverTracking |
-| `MapLegend.tsx` | AdminTracking, DriverTracking |
-| `RouteTrackingDisplay.tsx` | RealTimeMap, AdminTracking, DriverTracking |
-| `RouteMapEditor.tsx` | AdminRoutes, RouteManager |
-| `map-icons.ts` | RealTimeMap, DriverTracking |
-| `map-tiles.ts` | MapView, RealTimeMap |
-| `services/routeTracking.ts` | RouteTrackingDisplay |
-
-### File Map ORPHAN — Tidak Digunakan (DELETE)
-| File | Masalah |
-|------|---------|
-| `components/map/MapController.tsx` | Export `MAP_LAYERS` & `MapController` — **tidak di-import oleh siapa pun** |
-| `pages/admin/AdminTracking-old.tsx` | File lama, tidak di-import oleh App.tsx |
-| `pages/customer/CustomerBookingDetail-old.tsx` | File lama, tidak di-import oleh App.tsx |
-| `components/RouteManager.tsx` | Tidak di-import oleh file manapun |
-| `MAP_IMPLEMENTATION_GUIDE.md` | Dokumentasi lama, banyak info outdated |
-
-### File yang Bisa Dioptimasi
-| File | Masalah |
-|------|---------|
-| `MapView.tsx` | Hanya dipakai oleh DriverTracking — pertimbangkan inline atau tetap sebagai shared component |
-| `RealTimeMap.tsx` | Import `OSM_DE_TILE_URL` & `OSM_DE_ATTRIBUTION` dari map-tiles tapi tidak pernah dipakai |
-| `map-tiles.ts` | Export `OSM_DE_TILE_URL` & `OSM_DE_ATTRIBUTION` — tidak digunakan |
-
-## Rencana
-
-### 1. Hapus 5 file orphan
-- `src/components/map/MapController.tsx`
-- `src/pages/admin/AdminTracking-old.tsx`
-- `src/pages/customer/CustomerBookingDetail-old.tsx`
-- `src/components/RouteManager.tsx`
-- `MAP_IMPLEMENTATION_GUIDE.md`
-
-### 2. Bersihkan export tidak terpakai
-- `map-tiles.ts`: hapus `OSM_DE_TILE_URL` dan `OSM_DE_ATTRIBUTION`
-- `RealTimeMap.tsx`: hapus import `OSM_DE_*` yang tidak digunakan
-
-### 3. Hasil akhir — file map yang tersisa (bersih)
-```text
-src/
-├── components/
-│   ├── MapView.tsx              ← shared map base (DriverTracking)
-│   ├── RealTimeMap.tsx          ← advanced map (AdminTracking, CustomerBookingDetail)
-│   ├── MapLegend.tsx            ← legend overlay
-│   ├── RouteMapEditor.tsx       ← editor rute (AdminRoutes)
-│   └── RouteTrackingDisplay.tsx ← hook + panels (ETA, route info)
-├── lib/
-│   ├── map-icons.ts             ← icon utilities
-│   └── map-tiles.ts             ← tile URLs (cleaned)
-└── services/
-    └── routeTracking.ts         ← route calculation service
+`RealTimeMap.tsx` baris 288-292:
+```typescript
+useEffect(() => {
+  if (onRouteInfoChange && showRouteTracking) {
+    onRouteInfoChange(routeTracking);
+  }
+}, [routeTracking, onRouteInfoChange, showRouteTracking]);
 ```
 
-Tidak ada perubahan fungsional — hanya cleanup file mati dan import tidak terpakai.
+`routeTracking` adalah object baru setiap render (dari `useRouteTracking` hook yang return `{ routeInfo, isLoading, error, polyline, routeResponse }`). Ini memicu effect → memanggil `onRouteInfoChange(routeTracking)` → parent (`AdminTracking`) memanggil `setRouteTracking` → re-render → object baru lagi → loop tanpa henti.
+
+Ditambah lagi, `AdminTracking.tsx` baris 68 melanggar rules of hooks:
+```typescript
+const activeSchedules = rtActiveSchedules.length > 0 ? rtActiveSchedules : useMemo(...)
+```
+`useMemo` dipanggil secara kondisional — ini ilegal di React.
+
+## Perbaikan
+
+### 1. `src/components/RealTimeMap.tsx` — Stabilkan effect dependency
+
+Ganti dependency `routeTracking` (selalu baru) dengan field-field primitif yang stabil:
+```typescript
+useEffect(() => {
+  if (onRouteInfoChange && showRouteTracking) {
+    onRouteInfoChange(routeTracking);
+  }
+}, [routeTracking.routeInfo, routeTracking.isLoading, routeTracking.error, onRouteInfoChange, showRouteTracking]);
+```
+
+Atau lebih baik: gunakan `useRef` untuk menyimpan `routeTracking` terakhir dan hanya panggil callback saat `routeInfo` benar-benar berubah (compare distance/duration).
+
+### 2. `src/pages/admin/AdminTracking.tsx` — Fix conditional hook
+
+Pindahkan `useMemo` keluar dari kondisional:
+```typescript
+const fallbackSchedules = useMemo(() =>
+  schedules.filter(s => s.driverId && (s.status === 'departed' || s.status === 'boarding')),
+  [schedules]
+);
+const activeSchedules = rtActiveSchedules.length > 0 ? rtActiveSchedules : fallbackSchedules;
+```
+
+### 3. `src/pages/admin/AdminTracking.tsx` — Stabilkan `onRouteInfoChange`
+
+Wrap `setRouteTracking` dengan `useCallback` atau gunakan `useRef` agar tidak membuat function baru tiap render (sudah stabil karena dari `useState`, tapi pastikan tidak di-wrap ulang).
+
+## File yang Diubah
+
+| File | Aksi |
+|------|------|
+| `src/components/RealTimeMap.tsx` | Stabilkan useEffect dependency untuk routeTracking callback |
+| `src/pages/admin/AdminTracking.tsx` | Fix conditional useMemo (hooks violation) |
 
