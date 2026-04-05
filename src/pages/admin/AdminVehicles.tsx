@@ -568,12 +568,12 @@ const AdminVehicles = () => {
                         <TableCell className="font-mono">{s.departureTime}</TableCell>
                         <TableCell>{vehicle?.name} ({vehicle?.plateNumber})</TableCell>
                         <TableCell>
-                          <Select value={s.driverId || ''} onValueChange={v => handleAssign(s.id, v)}>
+                          <Select value={s.driverId || "none"} onValueChange={v => handleAssign(s.id, v === "none" ? "" : v)}>
                             <SelectTrigger className="w-48">
                               <SelectValue placeholder="Pilih driver" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Tidak ada driver</SelectItem>
+                              <SelectItem value="none">Tidak ada driver</SelectItem>
                               {drivers.filter(d => d.status === 'active').map(d => (
                                 <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                               ))}
