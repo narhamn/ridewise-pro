@@ -6,11 +6,13 @@ import { calculateFinalPrice } from '@/lib/pricing';
 import { processBookingOnServer, BookingRequest, BookingResponse } from '@/services/bookingServer';
 import { useNotifications } from './NotificationContext';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 interface ShuttleContextType {
   currentUser: User | null;
-  login: (email: string, password: string, role: UserRole) => boolean;
-  logout: () => void;
+  loading: boolean;
+  login: (email: string, password: string, role: UserRole) => Promise<boolean>;
+  logout: () => Promise<void>;
   routes: Route[];
   routePoints: RoutePoint[];
   schedules: Schedule[];
@@ -28,17 +30,17 @@ interface ShuttleContextType {
   registrations: DriverRegistration[];
   updateDriverLocation: (driverId: string, location: DriverLocation) => void;
   addAuditLog: (log: Omit<PricingAuditLog, 'id' | 'changeDate'>) => void;
-  createSecureBooking: (request: BookingRequest) => BookingResponse;
-  addBooking: (booking: Booking) => void;
-  updateScheduleStatus: (scheduleId: string, status: Schedule['status']) => void;
-  addRideRequest: (request: RideRequest) => void;
-  acceptRideRequest: (requestId: string) => void;
-  rejectRideRequest: (requestId: string) => void;
-  checkInPassenger: (bookingId: string) => void;
-  updateTicketStatus: (ticketId: string, status: TicketStatus, note?: string) => void;
-  addTicketComment: (ticketId: string, message: string, attachments?: string[]) => void;
-  submitDriverRegistration: (registration: Omit<Driver, 'id' | 'verificationStatus' | 'submittedAt' | 'updatedAt' | 'logs' | 'status' | 'rating' | 'totalTrips' | 'joinDate'>) => void;
-  updateRegistrationStatus: (registrationId: string, status: VerificationStatus, reason?: string) => void;
+  createSecureBooking: (request: BookingRequest) => Promise<BookingResponse>;
+  addBooking: (booking: Booking) => Promise<void>;
+  updateScheduleStatus: (scheduleId: string, status: Schedule['status']) => Promise<void>;
+  addRideRequest: (request: RideRequest) => Promise<void>;
+  acceptRideRequest: (requestId: string) => Promise<void>;
+  rejectRideRequest: (requestId: string) => Promise<void>;
+  checkInPassenger: (bookingId: string) => Promise<void>;
+  updateTicketStatus: (ticketId: string, status: TicketStatus, note?: string) => Promise<void>;
+  addTicketComment: (ticketId: string, message: string, attachments?: string[]) => Promise<void>;
+  submitDriverRegistration: (registration: Omit<Driver, 'id' | 'verificationStatus' | 'submittedAt' | 'updatedAt' | 'logs' | 'status' | 'rating' | 'totalTrips' | 'joinDate'>) => Promise<void>;
+  updateRegistrationStatus: (registrationId: string, status: VerificationStatus, reason?: string) => Promise<void>;
   setRoutes: React.Dispatch<React.SetStateAction<Route[]>>;
   setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
   setSchedules: React.Dispatch<React.SetStateAction<Schedule[]>>;
@@ -49,14 +51,14 @@ interface ShuttleContextType {
   setDiscounts: React.Dispatch<React.SetStateAction<Discount[]>>;
   setTaxConfigs: React.Dispatch<React.SetStateAction<TaxConfig[]>>;
   updateDriverStatus: (driverId: string, status: 'online' | 'offline') => Promise<boolean>;
-  assignDriverToSchedule: (scheduleId: string, driverId: string) => void;
-  removeDriverFromSchedule: (scheduleId: string) => void;
-  updateTripStatus: (scheduleId: string, status: Schedule['status'], notes?: string) => void;
+  assignDriverToSchedule: (scheduleId: string, driverId: string) => Promise<void>;
+  removeDriverFromSchedule: (scheduleId: string) => Promise<void>;
+  updateTripStatus: (scheduleId: string, status: Schedule['status'], notes?: string) => Promise<void>;
   notifyBookingCreated: (booking: Booking) => void;
   notifyTripUpdate: (scheduleId: string, status: Schedule['status']) => void;
   getAvailableDrivers: (date: string, timeSlot?: string) => Driver[];
   getDriverSchedule: (driverId: string, date?: string) => Schedule[];
-  updateDriverProfile: (driverId: string, updates: Partial<Driver>) => void;
+  updateDriverProfile: (driverId: string, updates: Partial<Driver>) => Promise<void>;
   recalcRoutePointPrices: (routeId: string, pricePerMeter: number, roadConditionMultiplier?: number, vehicleTypeMultiplier?: number) => void;
   recalculateRouteDistanceAndPrice: (routeId: string, roadConditionMultiplier?: number, vehicleTypeMultiplier?: number) => void;
 }
@@ -66,22 +68,11 @@ const ShuttleContext = createContext<ShuttleContextType | undefined>(undefined);
 export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   const { addNotification } = useNotifications();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [routes, setRoutes] = useState<Route[]>(dummyRoutes);
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>(dummyRoutePoints);
   const [schedules, setSchedules] = useState<Schedule[]>(dummySchedules);
-  const [drivers, setDrivers] = useState<Driver[]>(() => {
-    const saved = localStorage.getItem('shuttle_drivers');
-    const loadedDrivers = saved ? JSON.parse(saved) : [...dummyDrivers, ...dummyRegistrations];
-    return loadedDrivers;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('shuttle_drivers', JSON.stringify(drivers));
-  }, [drivers]);
-
-  // Derived state for backward compatibility
-  const registrations = drivers.filter(d => d.verificationStatus !== 'approved');
-  
+  const [drivers, setDrivers] = useState<Driver[]>(dummyDrivers);
   const [vehicles, setVehicles] = useState<Vehicle[]>(dummyVehicles);
   const [bookings, setBookings] = useState<Booking[]>(dummyBookings);
   const [rayonPricing, setRayonPricing] = useState<RayonPricing[]>(defaultRayonPricing);
@@ -90,20 +81,119 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   const [taxConfigs, setTaxConfigs] = useState<TaxConfig[]>(defaultTaxConfigs);
   const [auditLogs, setAuditLogs] = useState<PricingAuditLog[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>(dummyTickets);
-  // Removed separate registrations state
-
   
   // Real-time tracking states
   const [driverLocations, setDriverLocations] = useState<Record<string, DriverLocation>>({});
   const [trackingLogs, setTrackingLogs] = useState<TrackingLog[]>([]);
 
-  const updateDriverLocation = useCallback((driverId: string, location: DriverLocation) => {
+  // Fetch data from Supabase on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch Auth Session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profile) setCurrentUser(profile);
+        }
+
+        // Fetch Business Data (Routes, Vehicles, etc.)
+        const [
+          { data: dbRoutes },
+          { data: dbPoints },
+          { data: dbSchedules },
+          { data: dbVehicles },
+          { data: dbDrivers },
+          { data: dbBookings }
+        ] = await Promise.all([
+          supabase.from('routes').select('*'),
+          supabase.from('route_points').select('*'),
+          supabase.from('schedules').select('*'),
+          supabase.from('vehicles').select('*'),
+          supabase.from('drivers').select('*'),
+          supabase.from('bookings').select('*')
+        ]);
+
+        if (dbRoutes) setRoutes(dbRoutes);
+        if (dbPoints) setRoutePoints(dbPoints);
+        if (dbSchedules) setSchedules(dbSchedules);
+        if (dbVehicles) setVehicles(dbVehicles);
+        if (dbDrivers) setDrivers(dbDrivers);
+        if (dbBookings) setBookings(dbBookings);
+
+      } catch (error) {
+        console.error('Error fetching data from Supabase:', error);
+        toast.error('Gagal memuat data dari server. Menggunakan data lokal.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    // Setup Realtime Subscriptions
+    const schedulesSubscription = supabase
+      .channel('public:schedules')
+      .on('postgres_changes', { event: '*', table: 'schedules' }, payload => {
+        const updatedSchedule = payload.new as Schedule;
+        setSchedules(prev => {
+          if (payload.eventType === 'INSERT') return [...prev, updatedSchedule];
+          if (payload.eventType === 'UPDATE') return prev.map(s => s.id === updatedSchedule.id ? updatedSchedule : s);
+          if (payload.eventType === 'DELETE') return prev.filter(s => s.id === payload.old.id);
+          return prev;
+        });
+        
+        // Notify on status update
+        if (payload.eventType === 'UPDATE' && payload.old.status !== updatedSchedule.status) {
+          notifyTripUpdate(updatedSchedule.id, updatedSchedule.status);
+        }
+      })
+      .subscribe();
+
+    const locationsSubscription = supabase
+      .channel('public:driver_locations')
+      .on('postgres_changes', { event: '*', table: 'driver_locations' }, payload => {
+        const newLocation = payload.new as DriverLocation;
+        setDriverLocations(prev => ({ ...prev, [newLocation.driverId]: newLocation }));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(schedulesSubscription);
+      supabase.removeChannel(locationsSubscription);
+    };
+  }, []);
+
+  const updateDriverLocation = useCallback(async (driverId: string, location: DriverLocation) => {
+    // Update Supabase
+    const { error } = await supabase
+      .from('driver_locations')
+      .upsert({
+        driver_id: driverId,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        speed: location.speed,
+        accuracy: location.accuracy,
+        updated_at: location.timestamp
+      });
+
+    if (error) {
+      console.error('Error updating driver location:', error);
+      return;
+    }
+
     setDriverLocations(prev => ({
       ...prev,
       [driverId]: location
     }));
 
-    // Record to tracking log
+    // Record to tracking log (Optional: Can be done via DB Trigger or Edge Function)
     const newLog: TrackingLog = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       entityId: driverId,
@@ -114,48 +204,58 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
       timestamp: location.timestamp
     };
 
-    setTrackingLogs(prev => {
-      const updated = [newLog, ...prev];
-      // Keep only last 1000 logs for performance
-      return updated.slice(0, 1000);
-    });
+    setTrackingLogs(prev => [newLog, ...prev].slice(0, 1000));
   }, []);
 
-  const addAuditLog = (log: Omit<PricingAuditLog, 'id' | 'changeDate'>) => {
-    const newLog: PricingAuditLog = {
-      ...log,
-      id: `audit-${Date.now()}`,
-      changeDate: new Date().toISOString(),
-    };
-    setAuditLogs(prev => [newLog, ...prev]);
-    // Simulated backup: in a real app, this would be a persistent store or external API
-    console.log("Audit log backed up:", newLog);
-  };
+  const login = async (email: string, password: string, role: UserRole): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
 
-  const login = (email: string, _password: string, role: UserRole): boolean => {
-    if (role === 'customer') {
-      setCurrentUser({ id: 'u1', name: 'Siti Aminah', email, phone: '081200000001', role: 'customer' });
-    } else if (role === 'driver') {
-      const driver = drivers.find(d => d.phoneNumber === email || d.name.toLowerCase().includes(email.toLowerCase()));
-      if (driver) {
-        setCurrentUser({ id: driver.id, name: driver.name, email: `${driver.id}@ridewise.com`, phone: driver.phoneNumber, role: 'driver' });
-      } else {
-        setCurrentUser({ id: 'd1', name: 'Budi Santoso', email: 'budi@ridewise.com', phone: '081234567890', role: 'driver' });
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (profile) {
+          if (profile.role !== role) {
+            await supabase.auth.signOut();
+            toast.error(`Akses ditolak. Akun Anda terdaftar sebagai ${profile.role}.`);
+            return false;
+          }
+          setCurrentUser(profile);
+          toast.success(`Selamat datang kembali, ${profile.name}!`);
+          return true;
+        }
       }
-    } else {
-      setCurrentUser({ id: 'admin1', name: 'Administrator', email, phone: '081200000000', role: 'admin' });
+      return false;
+    } catch (error: any) {
+      toast.error(`Login gagal: ${error.message}`);
+      return false;
     }
-    return true;
   };
 
-  const logout = () => setCurrentUser(null);
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+  };
 
-  const addBooking = (booking: Booking) => {
+  const addBooking = async (booking: Booking) => {
+    const { error } = await supabase.from('bookings').insert(booking);
+    if (error) {
+      toast.error('Gagal menyimpan booking ke server.');
+      return;
+    }
     setBookings(prev => [...prev, booking]);
     notifyBookingCreated(booking);
   };
 
-  const createSecureBooking = (request: BookingRequest): BookingResponse => {
+  const createSecureBooking = async (request: BookingRequest): Promise<BookingResponse> => {
+    // In a real Supabase setup, this would call an Edge Function
+    // const { data, error } = await supabase.functions.invoke('process-booking', { body: request });
+    
     const response = processBookingOnServer(request, {
       users: currentUser ? [currentUser] : [],
       schedules,
@@ -167,21 +267,45 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (response.success && response.booking) {
-      addBooking(response.booking);
+      await addBooking(response.booking);
     }
 
     return response;
   };
 
-  const updateScheduleStatus = (scheduleId: string, status: Schedule['status']) => {
+  const updateScheduleStatus = async (scheduleId: string, status: Schedule['status']) => {
+    const { error } = await supabase
+      .from('schedules')
+      .update({ status })
+      .eq('id', scheduleId);
+
+    if (error) {
+      toast.error('Gagal memperbarui status jadwal.');
+      return;
+    }
     setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, status } : s));
   };
 
-  const addRideRequest = (request: RideRequest) => {
+  const addRideRequest = async (request: RideRequest) => {
+    const { error } = await supabase.from('ride_requests').insert(request);
+    if (error) {
+      toast.error('Gagal mengirim permintaan tumpangan.');
+      return;
+    }
     setRideRequests(prev => [...prev, request]);
   };
 
-  const acceptRideRequest = (requestId: string) => {
+  const acceptRideRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from('ride_requests')
+      .update({ status: 'accepted' })
+      .eq('id', requestId);
+
+    if (error) {
+      toast.error('Gagal menyetujui permintaan.');
+      return;
+    }
+
     setRideRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'accepted' as const } : r));
     const request = rideRequests.find(r => r.id === requestId);
     if (!request) return;
@@ -207,28 +331,60 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
       paymentMethod: 'qris',
       bookingType: 'realtime',
     };
-    addBooking(newBooking);
+    await addBooking(newBooking);
   };
 
-  const rejectRideRequest = (requestId: string) => {
+  const rejectRideRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from('ride_requests')
+      .update({ status: 'rejected' })
+      .eq('id', requestId);
+
+    if (error) {
+      toast.error('Gagal menolak permintaan.');
+      return;
+    }
     setRideRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'rejected' as const } : r));
   };
 
-  const checkInPassenger = (bookingId: string) => {
+  const checkInPassenger = async (bookingId: string) => {
+    const { error } = await supabase
+      .from('bookings')
+      .update({ checked_in: true })
+      .eq('id', bookingId);
+
+    if (error) {
+      toast.error('Gagal melakukan check-in.');
+      return;
+    }
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, checkedIn: true } : b));
   };
 
-  const updateTicketStatus = (ticketId: string, status: TicketStatus, note?: string) => {
+  const updateTicketStatus = async (ticketId: string, status: TicketStatus, note?: string) => {
+    const historyItem = {
+      id: `h-${Date.now()}`,
+      ticketId,
+      status,
+      changedBy: currentUser?.name || 'System',
+      timestamp: new Date().toISOString(),
+      note
+    };
+
+    const { error } = await supabase
+      .from('tickets')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', ticketId);
+
+    if (error) {
+      toast.error('Gagal memperbarui status tiket.');
+      return;
+    }
+
+    // Insert history
+    await supabase.from('ticket_history').insert(historyItem);
+
     setTickets(prev => prev.map(t => {
       if (t.id !== ticketId) return t;
-      const historyItem = {
-        id: `h-${Date.now()}`,
-        ticketId,
-        status,
-        changedBy: currentUser?.name || 'System',
-        timestamp: new Date().toISOString(),
-        note
-      };
       return {
         ...t,
         status,
@@ -239,20 +395,27 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     toast.success(`Status tiket diperbarui menjadi ${status}`);
   };
 
-  const addTicketComment = (ticketId: string, message: string, attachments?: string[]) => {
+  const addTicketComment = async (ticketId: string, message: string, attachments?: string[]) => {
     if (!currentUser) return;
+    const newComment: TicketComment = {
+      id: `c-${Date.now()}`,
+      ticketId,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      senderRole: currentUser.role,
+      message,
+      timestamp: new Date().toISOString(),
+      attachments
+    };
+
+    const { error } = await supabase.from('ticket_comments').insert(newComment);
+    if (error) {
+      toast.error('Gagal menambahkan komentar.');
+      return;
+    }
+
     setTickets(prev => prev.map(t => {
       if (t.id !== ticketId) return t;
-      const newComment: TicketComment = {
-        id: `c-${Date.now()}`,
-        ticketId,
-        senderId: currentUser.id,
-        senderName: currentUser.name,
-        senderRole: currentUser.role,
-        message,
-        timestamp: new Date().toISOString(),
-        attachments
-      };
       return {
         ...t,
         updatedAt: new Date().toISOString(),
@@ -262,13 +425,13 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     toast.success('Komentar ditambahkan');
   };
 
-  const submitDriverRegistration = (reg: Omit<Driver, 'id' | 'verificationStatus' | 'submittedAt' | 'updatedAt' | 'logs' | 'status' | 'rating' | 'totalTrips' | 'joinDate'>) => {
+  const submitDriverRegistration = async (reg: Omit<Driver, 'id' | 'verificationStatus' | 'submittedAt' | 'updatedAt' | 'logs' | 'status' | 'rating' | 'totalTrips' | 'joinDate'>) => {
     const regId = `reg-${Date.now()}`;
     const newReg: Driver = {
       ...reg,
       id: regId,
       status: 'offline',
-      verificationStatus: 'pending',
+      verificationStatus: 'pending', 
       rating: 0,
       totalTrips: 0,
       joinDate: new Date().toISOString().split('T')[0],
@@ -278,12 +441,18 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
         { id: `l-${Date.now()}`, registrationId: regId, status: 'pending', changedBy: 'System', timestamp: new Date().toISOString(), reason: 'Initial submission' }
       ]
     };
+
+    const { error } = await supabase.from('drivers').insert(newReg);
+    if (error) {
+      toast.error('Gagal mengirim pendaftaran.');
+      return;
+    }
+
     setDrivers(prev => [...prev, newReg]);
     toast.success('Pendaftaran driver berhasil dikirim. Mohon tunggu verifikasi admin.');
   };
 
-  const updateRegistrationStatus = (registrationId: string, status: VerificationStatus, reason?: string) => {
-    // 1. Role-based access control (Only admin can verify)
+  const updateRegistrationStatus = async (registrationId: string, status: VerificationStatus, reason?: string) => {
     if (!currentUser || currentUser.role !== 'admin') {
       toast.error('Hanya administrator yang dapat melakukan verifikasi.');
       return;
@@ -295,7 +464,6 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // 2. Duplicate Validation (Only check on approval)
     if (status === 'approved') {
       const isDuplicate = drivers.some(d => 
         d.id !== registrationId && d.verificationStatus === 'approved' && (
@@ -311,36 +479,51 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // 3. Update Status and Audit Log
+    const newLog: VerificationLog = {
+      id: `l-${Date.now()}`,
+      registrationId,
+      status,
+      changedBy: currentUser.name,
+      timestamp: new Date().toISOString(),
+      reason
+    };
+
+    const { error } = await supabase
+      .from('drivers')
+      .update({
+        verification_status: status,
+        rejection_reason: status === 'rejected' ? reason : registration.rejectionReason,
+        updated_at: new Date().toISOString(),
+        vehicle_details: registration.vehicleDetails ? {
+          ...registration.vehicleDetails,
+          verificationStatus: status,
+        } : undefined
+      })
+      .eq('id', registrationId);
+
+    if (error) {
+      toast.error('Gagal memperbarui status pendaftaran.');
+      return;
+    }
+
+    // Insert log
+    await supabase.from('verification_logs').insert(newLog);
+
     setDrivers(prev => prev.map(r => {
       if (r.id !== registrationId) return r;
-      
-      const newLog: VerificationLog = {
-        id: `l-${Date.now()}`,
-        registrationId,
-        status,
-        changedBy: currentUser.name,
-        timestamp: new Date().toISOString(),
-        reason
-      };
-
       return {
         ...r,
         verificationStatus: status,
         rejectionReason: status === 'rejected' ? reason : r.rejectionReason,
         updatedAt: new Date().toISOString(),
         logs: r.logs ? [...r.logs, newLog] : [newLog],
-        // If approved, update vehicle details status too
         vehicleDetails: r.vehicleDetails ? {
           ...r.vehicleDetails,
           verificationStatus: status,
-          vin: r.vehicleDetails.vin || `VIN-${Date.now()}`,
-          engineNumber: r.vehicleDetails.engineNumber || `ENG-${Date.now()}`
         } : undefined
       };
     }));
 
-    // 5. Send Real-time Notification to Driver (Simulated)
     addNotification({
       title: status === 'approved' ? 'Pendaftaran Disetujui' : 'Pendaftaran Ditolak',
       message: status === 'approved' 
@@ -353,61 +536,38 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     toast.success(`Status pendaftaran diperbarui menjadi ${status}`);
   };
 
-  const updateDriverStatus = async (driverId: string, status: 'online' | 'offline', retryCount = 0): Promise<boolean> => {
-    const MAX_RETRIES = 3;
-    const WAIT_TIME = 2000; // 2 seconds minimum between changes
+  const updateDriverStatus = async (driverId: string, status: 'online' | 'offline'): Promise<boolean> => {
+    const { error } = await supabase
+      .from('drivers')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', driverId);
 
-    const driver = drivers.find(d => d.id === driverId);
-    if (!driver) return false;
-
-    // 1. Validation: Wait time check
-    if (driver.lastStatusChange) {
-      const lastChange = new Date(driver.lastStatusChange).getTime();
-      const now = Date.now();
-      if (now - lastChange < WAIT_TIME) {
-        toast.error(`Mohon tunggu sebentar sebelum mengubah status kembali.`);
-        return false;
-      }
+    if (error) {
+      toast.error('Gagal memperbarui status driver di server.');
+      return false;
     }
 
-    // 2. Mock Server Sync with Retry Mechanism
-    const syncWithServer = async (): Promise<boolean> => {
-      // Simulate network failure 20% of the time for testing retry
-      const isSuccess = Math.random() > 0.2;
-      return new Promise((resolve) => {
-        setTimeout(() => resolve(isSuccess), 500);
-      });
-    };
-
-    const success = await syncWithServer();
-    if (!success) {
-      if (retryCount < MAX_RETRIES) {
-        console.warn(`[SYNC RETRY] Gagal sinkronisasi status ke server. Mencoba ulang (${retryCount + 1}/${MAX_RETRIES})...`);
-        return updateDriverStatus(driverId, status, retryCount + 1);
-      } else {
-        toast.error('Gagal sinkronisasi status ke server setelah beberapa kali percobaan.');
-        return false;
-      }
-    }
-
-    // 3. Update Local State
     setDrivers(prev => prev.map(d => 
       d.id === driverId 
         ? { ...d, status, lastStatusChange: new Date().toISOString() } 
         : d
     ));
 
-    // 4. Notifications
-    const statusMsg = status === 'online' ? 'Anda sekarang ONLINE dan dapat menerima pesanan.' : 'Anda sekarang OFFLINE.';
-    toast.success(statusMsg);
-    
-    // In a real app, we would emit a socket event here:
-    // socket.emit('driver_status_changed', { driverId, status });
-    console.log(`[SERVER NOTIFY] Driver ${driverId} status changed to ${status}`);
+    toast.success(status === 'online' ? 'Anda sekarang ONLINE.' : 'Anda sekarang OFFLINE.');
     return true;
   };
 
-  const updateDriverProfile = (driverId: string, updates: Partial<Driver>) => {
+  const updateDriverProfile = async (driverId: string, updates: Partial<Driver>) => {
+    const { error } = await supabase
+      .from('drivers')
+      .update(updates)
+      .eq('id', driverId);
+
+    if (error) {
+      toast.error('Gagal memperbarui profil di server.');
+      return;
+    }
+
     setDrivers(prev => prev.map(d => d.id === driverId ? { ...d, ...updates } : d));
     toast.success('Profil berhasil diperbarui');
   };
@@ -524,148 +684,58 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
-  const assignDriverToSchedule = useCallback((scheduleId: string, driverId: string) => {
-    const schedule = schedules.find(s => s.id === scheduleId);
-    const driver = drivers.find(d => d.id === driverId);
+  const assignDriverToSchedule = async (scheduleId: string, driverId: string) => {
+    const { error } = await supabase
+      .from('schedules')
+      .update({ driver_id: driverId, status: 'scheduled' })
+      .eq('id', scheduleId);
 
-    if (!schedule || !driver) {
-      toast.error('Jadwal atau driver tidak ditemukan');
+    if (error) {
+      toast.error('Gagal menugaskan driver.');
       return;
     }
 
-    // Check if driver is already assigned to another schedule at the same time
-    const conflictingSchedule = schedules.find(s =>
-      s.id !== scheduleId &&
-      s.driverId === driverId &&
-      s.departureDate === schedule.departureDate &&
-      Math.abs(new Date(`2000-01-01T${s.departureTime}`).getTime() - new Date(`2000-01-01T${schedule.departureTime}`).getTime()) < 2 * 60 * 60 * 1000 // 2 hours buffer
-    );
-
-    if (conflictingSchedule) {
-      toast.error('Driver sudah memiliki jadwal di waktu yang sama');
-      return;
-    }
-
-    // Update schedule with driver assignment
     setSchedules(prev => prev.map(s =>
       s.id === scheduleId ? { ...s, driverId, status: 'scheduled' as const } : s
     ));
 
-    // Notify driver
-    addNotification({
-      title: 'Jadwal Baru Ditugaskan',
-      message: `Anda ditugaskan untuk rute ${routes.find(r => r.id === schedule.routeId)?.name} pada ${schedule.departureDate} jam ${schedule.departureTime}`,
-      type: 'trip',
-      role: 'driver'
-    });
+    toast.success(`Driver berhasil ditugaskan.`);
+  };
 
-    // Notify admin
-    addNotification({
-      title: 'Driver Ditugaskan',
-      message: `${driver.name} ditugaskan ke jadwal ${routes.find(r => r.id === schedule.routeId)?.name}`,
-      type: 'system',
-      role: 'admin'
-    });
+  const removeDriverFromSchedule = async (scheduleId: string) => {
+    const { error } = await supabase
+      .from('schedules')
+      .update({ driver_id: null, status: 'cancelled' })
+      .eq('id', scheduleId);
 
-    toast.success(`Driver ${driver.name} berhasil ditugaskan ke jadwal`);
-  }, [schedules, drivers, routes, addNotification]);
-
-  const removeDriverFromSchedule = useCallback((scheduleId: string) => {
-    const schedule = schedules.find(s => s.id === scheduleId);
-    if (!schedule) return;
-
-    setSchedules(prev => prev.map(s =>
-      s.id === scheduleId ? { ...s, driverId: undefined, status: 'cancelled' as const } : s
-    ));
-
-    // Notify driver if assigned
-    if (schedule.driverId) {
-      addNotification({
-        title: 'Jadwal Dibatalkan',
-        message: `Penugasan untuk rute ${routes.find(r => r.id === schedule.routeId)?.name} telah dibatalkan`,
-        type: 'trip',
-        role: 'driver'
-      });
+    if (error) {
+      toast.error('Gagal membatalkan penugasan.');
+      return;
     }
 
-    toast.success('Driver berhasil dihapus dari jadwal');
-  }, [schedules, routes, addNotification]);
-
-  const updateTripStatus = useCallback((scheduleId: string, status: Schedule['status'], notes?: string) => {
-    const schedule = schedules.find(s => s.id === scheduleId);
-    if (!schedule) return;
-
-    const route = routes.find(r => r.id === schedule.routeId);
-    const driver = drivers.find(d => d.id === schedule.driverId);
-
     setSchedules(prev => prev.map(s =>
-      s.id === scheduleId ? { ...s, status, updatedAt: new Date().toISOString() } : s
+      s.id === scheduleId ? { ...s, driverId: null, status: 'cancelled' as const } : s
     ));
 
-    // Notify passengers
-    const affectedBookings = bookings.filter(b => b.scheduleId === scheduleId && b.status === 'confirmed');
-    affectedBookings.forEach(booking => {
-      let message = '';
-      switch (status) {
-        case 'boarding':
-          message = `Shuttle ${route?.name} sedang boarding. Silakan menuju halte keberangkatan.`;
-          break;
-        case 'departed':
-          message = `Shuttle ${route?.name} telah berangkat dari halte keberangkatan.`;
-          break;
-        case 'arrived':
-          message = `Shuttle ${route?.name} telah tiba di tujuan. Terima kasih telah menggunakan layanan kami.`;
-          break;
-        case 'cancelled':
-          message = `Maaf, perjalanan ${route?.name} telah dibatalkan. ${notes || ''}`;
-          break;
-      }
+    toast.success('Penugasan berhasil dibatalkan');
+  };
 
-      if (message) {
-        addNotification({
-          title: `Update Perjalanan - ${route?.name}`,
-          message,
-          type: 'trip',
-          role: 'customer'
-        });
-      }
-    });
+  const updateTripStatus = async (scheduleId: string, status: Schedule['status'], notes?: string) => {
+    const { error } = await supabase
+      .from('schedules')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', scheduleId);
 
-    // Notify driver
-    if (driver) {
-      let driverMessage = '';
-      switch (status) {
-        case 'boarding':
-          driverMessage = `Waktunya boarding untuk rute ${route?.name}. Pastikan semua penumpang sudah naik.`;
-          break;
-        case 'departed':
-          driverMessage = `Perjalanan ${route?.name} telah dimulai. Selamat berkendara!`;
-          break;
-        case 'arrived':
-          driverMessage = `Perjalanan ${route?.name} telah selesai. Terima kasih atas dedikasinya.`;
-          break;
-      }
-
-      if (driverMessage) {
-        addNotification({
-          title: 'Update Status Trip',
-          message: driverMessage,
-          type: 'trip',
-          role: 'driver'
-        });
-      }
+    if (error) {
+      toast.error('Gagal memperbarui status perjalanan.');
+      return;
     }
 
-    // Notify admin
-    addNotification({
-      title: 'Update Status Trip',
-      message: `Trip ${route?.name} status: ${status}${notes ? ` - ${notes}` : ''}`,
-      type: 'trip',
-      role: 'admin'
-    });
-
-    toast.success(`Status trip diperbarui menjadi ${status}`);
-  }, [schedules, routes, drivers, bookings, addNotification]);
+    setSchedules(prev => prev.map(s =>
+      s.id === scheduleId ? { ...s, status } : s
+    ));
+    toast.success(`Status perjalanan diperbarui menjadi ${status}`);
+  };
 
   const notifyBookingCreated = useCallback((booking: Booking) => {
     const route = routes.find(r => r.id === booking.routeId);
