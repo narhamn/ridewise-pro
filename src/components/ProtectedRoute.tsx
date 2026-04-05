@@ -1,8 +1,11 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useShuttle } from '@/contexts/ShuttleContext';
+import { useCustomerAuth } from '@/contexts/CustomerAuthContext';
+import { useDriverAuth } from '@/contexts/DriverAuthContext';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { UserRole } from '@/types/shuttle';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -10,8 +13,29 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-  const { currentUser, loading } = useShuttle();
+  const customerAuth = useCustomerAuth();
+  const driverAuth = useDriverAuth();
+  const adminAuth = useAdminAuth();
   const location = useLocation();
+
+  // Determine which auth state to use based on the path or allowedRoles
+  const isCustomerPath = location.pathname.startsWith('/customer');
+  const isDriverPath = location.pathname.startsWith('/driver');
+  const isAdminPath = location.pathname.startsWith('/admin');
+
+  let currentUser = null;
+  let loading = false;
+
+  if (isAdminPath) {
+    currentUser = adminAuth.admin;
+    loading = adminAuth.loading;
+  } else if (isDriverPath) {
+    currentUser = driverAuth.driver;
+    loading = driverAuth.loading;
+  } else if (isCustomerPath) {
+    currentUser = customerAuth.customer;
+    loading = customerAuth.loading;
+  }
 
   if (loading) {
     return (
@@ -23,19 +47,16 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   }
 
   if (!currentUser) {
-    // Redirect to appropriate login page based on target path
-    let loginPath = '/login';
-    if (location.pathname.startsWith('/admin')) loginPath = '/admin/login';
-    if (location.pathname.startsWith('/driver')) loginPath = '/driver/login';
+    let loginPath = '/customer/login';
+    if (isAdminPath) loginPath = '/admin/login';
+    if (isDriverPath) loginPath = '/driver/login';
     
     return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
-    // Role not authorized
-    toast.error('Anda tidak memiliki izin untuk mengakses halaman ini.');
+    toast.error('Akses ditolak. Peran Anda tidak sesuai.');
     
-    // Redirect to home dashboard based on actual role
     const homePaths: Record<UserRole, string> = {
       admin: '/admin',
       driver: '/driver',
@@ -49,5 +70,3 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
 };
 
 export default ProtectedRoute;
-
-import { toast } from 'sonner';

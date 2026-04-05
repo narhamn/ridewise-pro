@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useShuttle } from '@/contexts/ShuttleContext';
+import { useDriverAuth } from '@/contexts/DriverAuthContext';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ const DriverLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const { login } = useShuttle();
+  const { login } = useDriverAuth();
   const navigate = useNavigate();
 
   const handleInputChange = (field: string, value: string) => {
@@ -58,7 +58,7 @@ const DriverLogin = () => {
 
     setIsLoading(true);
     try {
-      const success = await login(formData.email, formData.password, 'driver');
+      const success = await login(formData.email, formData.password);
       if (success) {
         navigate('/driver');
       } else {

@@ -5,8 +5,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ShuttleProvider } from "@/contexts/ShuttleContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { CustomerAuthProvider } from "@/contexts/CustomerAuthContext";
+import { DriverAuthProvider } from "@/contexts/DriverAuthContext";
+import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 
-import Index from "./pages/Index";
+import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
 
 import CustomerLogin from "./pages/customer/CustomerLogin";
@@ -53,76 +56,82 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <NotificationProvider>
-        <ShuttleProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true,
-            }}
-          >
-            <Routes>
-              <Route path="/" element={<Index />} />
+        <CustomerAuthProvider>
+          <DriverAuthProvider>
+            <AdminAuthProvider>
+              <ShuttleProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter
+                  future={{
+                    v7_startTransition: true,
+                    v7_relativeSplatPath: true,
+                  }}
+                >
+                  <Routes>
+                    <Route path="/" element={<LandingPage />} />
 
-              {/* Customer */}
-              <Route path="/customer/login" element={<CustomerLogin />} />
-              <Route path="/customer" element={
-                <ProtectedRoute allowedRoles={['customer']}>
-                  <CustomerLayout />
-                </ProtectedRoute>
-              }>
-                <Route index element={<CustomerHome />} />
-                <Route path="route/:routeId" element={<CustomerRouteDetail />} />
-                <Route path="booking/new" element={<CustomerBookingNew />} />
-                <Route path="booking/:bookingId" element={<CustomerBookingDetail />} />
-                <Route path="history" element={<CustomerHistory />} />
-                <Route path="tickets" element={<CustomerTickets />} />
-                <Route path="ride-now" element={<CustomerRideNow />} />
-                <Route path="profile" element={<CustomerProfile />} />
-              </Route>
+                    {/* Customer */}
+                    <Route path="/customer/login" element={<CustomerLogin />} />
+                    <Route path="/customer" element={
+                      <ProtectedRoute allowedRoles={['customer']}>
+                        <CustomerLayout />
+                      </ProtectedRoute>
+                    }>
+                      <Route index element={<CustomerHome />} />
+                      <Route path="route/:routeId" element={<CustomerRouteDetail />} />
+                      <Route path="booking/new" element={<CustomerBookingNew />} />
+                      <Route path="booking/:bookingId" element={<CustomerBookingDetail />} />
+                      <Route path="history" element={<CustomerHistory />} />
+                      <Route path="tickets" element={<CustomerTickets />} />
+                      <Route path="ride-now" element={<CustomerRideNow />} />
+                      <Route path="profile" element={<CustomerProfile />} />
+                    </Route>
 
-              {/* Driver */}
-              <Route path="/driver/login" element={<DriverLogin />} />
-              <Route path="/driver/register" element={<DriverRegister />} />
-              <Route path="/driver" element={
-                <ProtectedRoute allowedRoles={['driver']}>
-                  <DriverLayout />
-                </ProtectedRoute>
-              }>
-                <Route index element={<DriverDashboard />} />
-                <Route path="trips" element={<DriverTrips />} />
-                <Route path="trip/:scheduleId" element={<DriverTripDetail />} />
-                <Route path="tracking" element={<DriverTracking />} />
-                <Route path="profile" element={<DriverProfile />} />
-              </Route>
+                    {/* Driver */}
+                    <Route path="/driver/login" element={<DriverLogin />} />
+                    <Route path="/driver/register" element={<DriverRegister />} />
+                    <Route path="/driver" element={
+                      <ProtectedRoute allowedRoles={['driver']}>
+                        <DriverLayout />
+                      </ProtectedRoute>
+                    }>
+                      <Route index element={<DriverDashboard />} />
+                      <Route path="trips" element={<DriverTrips />} />
+                      <Route path="trip/:scheduleId" element={<DriverTripDetail />} />
+                      <Route path="tracking" element={<DriverTracking />} />
+                      <Route path="profile" element={<DriverProfile />} />
+                    </Route>
 
-              {/* Admin */}
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin" element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <AdminLayout />
-                </ProtectedRoute>
-              }>
-                <Route index element={<AdminDashboard />} />
-                <Route path="routes" element={<AdminRoutes />} />
-                
-                <Route path="drivers" element={<AdminDrivers />} />
-                <Route path="vehicles" element={<AdminVehicles />} />
-                
-                <Route path="bookings" element={<AdminBookings />} />
-                <Route path="reports" element={<AdminReports />} />
-                <Route path="tracking" element={<AdminTracking />} />
-                <Route path="analytics" element={<AdminAnalytics />} />
-                <Route path="payment-settings" element={<AdminPaymentSettings />} />
-                <Route path="ticket/:ticketId" element={<AdminTicketDetail />} />
-                <Route path="verifications" element={<AdminDriverVerification />} />
-              </Route>
+                    {/* Admin */}
+                    <Route path="/admin/login" element={<AdminLogin />} />
+                    <Route path="/admin" element={
+                      <ProtectedRoute allowedRoles={['admin']}>
+                        <AdminLayout />
+                      </ProtectedRoute>
+                    }>
+                      <Route index element={<AdminDashboard />} />
+                      <Route path="routes" element={<AdminRoutes />} />
+                      
+                      <Route path="drivers" element={<AdminDrivers />} />
+                      <Route path="vehicles" element={<AdminVehicles />} />
+                      
+                      <Route path="bookings" element={<AdminBookings />} />
+                      <Route path="reports" element={<AdminReports />} />
+                      <Route path="tracking" element={<AdminTracking />} />
+                      <Route path="analytics" element={<AdminAnalytics />} />
+                      <Route path="payment-settings" element={<AdminPaymentSettings />} />
+                      <Route path="ticket/:ticketId" element={<AdminTicketDetail />} />
+                      <Route path="verifications" element={<AdminDriverVerification />} />
+                    </Route>
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </ShuttleProvider>
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+              </ShuttleProvider>
+            </AdminAuthProvider>
+          </DriverAuthProvider>
+        </CustomerAuthProvider>
       </NotificationProvider>
     </TooltipProvider>
   </QueryClientProvider>

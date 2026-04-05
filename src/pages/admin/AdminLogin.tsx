@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useShuttle } from '@/contexts/ShuttleContext';
+import { useNavigate } from 'react-router-dom';
+import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ const AdminLogin = () => {
   const [error, setError] = useState('');
   const [show2FA, setShow2FA] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState('');
-  const { login } = useShuttle();
+  const { login } = useAdminAuth();
   const navigate = useNavigate();
 
   const handleInputChange = (field: string, value: string) => {
@@ -47,7 +47,7 @@ const AdminLogin = () => {
       if (twoFactorCode === '123456') { // Mock 2FA validation
         setIsLoading(true);
         try {
-          const success = await login(formData.email, formData.password, 'admin');
+          const success = await login(formData.email, formData.password);
           if (success) {
             navigate('/admin');
           } else {

@@ -13,11 +13,6 @@ import { driverRepository } from '@/repositories/DriverRepository';
 import { ticketRepository } from '@/repositories/TicketRepository';
 
 interface ShuttleContextType {
-  currentUser: User | null;
-  loading: boolean;
-  login: (email: string, password: string, role: UserRole) => Promise<boolean>;
-  signup: (email: string, password: string, name: string, role: UserRole) => Promise<boolean>;
-  logout: () => Promise<void>;
   routes: Route[];
   routePoints: RoutePoint[];
   schedules: Schedule[];
@@ -71,7 +66,6 @@ const ShuttleContext = createContext<ShuttleContextType | undefined>(undefined);
 
 export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   const { addNotification } = useNotifications();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [routes, setRoutes] = useState<Route[]>(dummyRoutes);
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>(dummyRoutePoints);
@@ -95,20 +89,8 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   // Fetch data from Supabase on mount
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
       try {
-        // Fetch Auth Session
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (profile) setCurrentUser(profile);
-        }
-
+        setLoading(true);
         // Fetch Business Data using Repositories
         const [
           dbRoutes,
@@ -195,111 +177,6 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     setAuditLogs(prev => [newLog, ...prev]);
   };
 
-  const login = async (email: string, password: string, role: UserRole): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        // Log failed attempt
-        addAuditLog({
-          entityType: 'user',
-          entityId: email,
-          action: 'login_failed',
-          oldValue: null,
-          newValue: { error: error.message, role }
-        });
-        throw error;
-      }
-
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-        
-        if (profile) {
-          if (profile.role !== role) {
-            await supabase.auth.signOut();
-            toast.error(`Akses ditolak. Akun Anda terdaftar sebagai ${profile.role}.`);
-            
-            // Log role mismatch
-            addAuditLog({
-              entityType: 'user',
-              entityId: data.user.id,
-              action: 'login_role_mismatch',
-              oldValue: { expected: role },
-              newValue: { actual: profile.role }
-            });
-            return false;
-          }
-          
-          setCurrentUser(profile);
-          toast.success(`Selamat datang kembali, ${profile.name}!`);
-
-          // Log successful login
-          addAuditLog({
-            entityType: 'user',
-            entityId: data.user.id,
-            action: 'login_success',
-            oldValue: null,
-            newValue: { role: profile.role }
-          });
-          return true;
-        }
-      }
-      return false;
-    } catch (error: any) {
-      toast.error(`Login gagal: ${error.message}`);
-      return false;
-    }
-  };
-
-  const signup = async (email: string, password: string, name: string, role: UserRole = 'customer'): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { name, role }
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        // Profile is created via database trigger on auth.users insert
-        toast.success('Pendaftaran berhasil! Silakan cek email untuk verifikasi.');
-        
-        // Log signup
-        addAuditLog({
-          entityType: 'user',
-          entityId: data.user.id,
-          action: 'signup_success',
-          oldValue: null,
-          newValue: { name, role, email }
-        });
-        return true;
-      }
-      return false;
-    } catch (error: any) {
-      toast.error(`Pendaftaran gagal: ${error.message}`);
-      return false;
-    }
-  };
-
-  const logout = async () => {
-    if (currentUser) {
-      addAuditLog({
-        entityType: 'user',
-        entityId: currentUser.id,
-        action: 'logout',
-        oldValue: null,
-        newValue: null
-      });
-    }
-    await supabase.auth.signOut();
-    setCurrentUser(null);
-  };
 
   const addBooking = async (booking: Booking) => {
     const { error } = await supabase.from('bookings').insert(booking);
@@ -787,7 +664,6 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <ShuttleContext.Provider value={{
-      currentUser, loading, login, signup, logout,
       routes, routePoints, schedules, drivers, vehicles, bookings, rayonPricing, rideRequests,
       discounts, taxConfigs, auditLogs,
       driverLocations, updateDriverLocation,

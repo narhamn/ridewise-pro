@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useShuttle } from '@/contexts/ShuttleContext';
+import { useCustomerAuth } from '@/contexts/CustomerAuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ const CustomerLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const { login, signup } = useShuttle();
+  const { login, signup } = useCustomerAuth();
   const navigate = useNavigate();
 
   const handleInputChange = (field: string, value: string) => {
