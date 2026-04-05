@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Calendar } from '@/components/ui/calendar';
 import { Plus, Pencil, Trash2, MapPin, ChevronRight, ArrowLeft, Settings, RefreshCw, CalendarDays, CalendarIcon, History, FileDown, Search, Map } from 'lucide-react';
 import { calculateFinalPrice, formatPrice } from '@/lib/pricing';
@@ -37,6 +38,18 @@ const AdminRoutes = () => {
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [editingPoint, setEditingPoint] = useState<RoutePoint | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [expandedRoutes, setExpandedRoutes] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (routeId: string) => {
+    const newExpanded = new Set(expandedRoutes);
+    if (newExpanded.has(routeId)) {
+      newExpanded.delete(routeId);
+    } else {
+      newExpanded.add(routeId);
+    }
+    setExpandedRoutes(newExpanded);
+  };
+
   const [routeForm, setRouteForm] = useState({ 
     name: '', 
     rayon: 'A' as Route['rayon'], 
@@ -776,24 +789,121 @@ const AdminRoutes = () => {
               <div className="grid gap-3 md:grid-cols-2">
                 {filteredRoutes.map(r => {
                   const ptCount = routePoints.filter(p => p.routeId === r.id).length;
+                  const isExpanded = expandedRoutes.has(r.id);
                   return (
-                    <Card key={r.id} className="cursor-pointer hover:border-primary transition-all" onClick={() => setSelectedRouteId(r.id)}>
-                      <CardContent className="p-4 flex items-center justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold">{r.name}</p>
-                            <Badge variant="outline">Rayon {r.rayon}</Badge>
+                    <Collapsible
+                      key={r.id}
+                      open={isExpanded}
+                      onOpenChange={() => toggleExpand(r.id)}
+                      className="w-full"
+                    >
+                      <Card className={cn(
+                        "overflow-hidden transition-all duration-200",
+                        isExpanded ? "border-primary ring-1 ring-primary/20" : "hover:border-primary/50"
+                      )}>
+                        <CardContent className="p-0">
+                          <div 
+                            className="p-4 flex items-center justify-between cursor-pointer"
+                            onClick={() => toggleExpand(r.id)}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-base">{r.name}</p>
+                                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-medium">
+                                  Rayon {r.rayon}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground font-medium">
+                                {(r.distanceMeters / 1000).toFixed(1)} km · {formatPrice(r.price)} · {r.pricePerMeter} Rp/m
+                              </p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                <MapPin className="h-3.5 w-3.5" />
+                                <span className="font-medium">{ptCount} titik jemput</span>
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center border-r pr-2 mr-1 gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                  onClick={e => { e.stopPropagation(); openEditRoute(r); }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  onClick={e => { e.stopPropagation(); handleDeleteRoute(r.id); }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className={cn(
+                                "p-1 rounded-full transition-transform duration-200",
+                                isExpanded ? "rotate-90 bg-primary/10 text-primary" : "text-muted-foreground"
+                              )}>
+                                <ChevronRight className="h-5 w-5" />
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-sm text-muted-foreground">{(r.distanceMeters / 1000).toFixed(0)} km · {formatPrice(r.price)} · {r.pricePerMeter} Rp/m</p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="h-3 w-3" />{ptCount} titik jemput</p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); openEditRoute(r); }}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); handleDeleteRoute(r.id); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      </CardContent>
-                    </Card>
+
+                          <CollapsibleContent className="border-t bg-muted/30">
+                            <div className="p-4 space-y-4">
+                              <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-muted-foreground/20">
+                                {routePoints
+                                  .filter(p => p.routeId === r.id)
+                                  .sort((a, b) => a.order - b.order)
+                                  .map((p, idx, array) => {
+                                    const isLast = idx === array.length - 1;
+                                    return (
+                                      <div key={p.id} className="relative group">
+                                        <div className={cn(
+                                          "absolute -left-[23px] top-1 h-[22px] w-[22px] rounded-full border-2 bg-background flex items-center justify-center text-[10px] font-bold z-10 transition-colors",
+                                          isLast ? "border-primary text-primary" : "border-muted-foreground/30 text-muted-foreground/60 group-hover:border-primary/50 group-hover:text-primary/70"
+                                        )}>
+                                          {p.order}
+                                        </div>
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                          <div className="space-y-0.5">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs font-mono font-bold bg-muted px-1.5 py-0.5 rounded border border-muted-foreground/10 text-muted-foreground">
+                                                {p.code}
+                                              </span>
+                                              <span className="text-sm font-semibold">{p.name}</span>
+                                              {isLast && <Badge variant="secondary" className="h-5 text-[10px] px-1.5 uppercase tracking-wider bg-primary/10 text-primary border-none">Tujuan</Badge>}
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-4 text-xs font-medium">
+                                            <div className="text-muted-foreground whitespace-nowrap">
+                                              {p.distanceToDestination === 0 ? "—" : `${(p.distanceToDestination / 1000).toFixed(1)} km`}
+                                            </div>
+                                            <div className="w-20 text-right font-bold text-primary/80">
+                                              {p.distanceToDestination === 0 ? "—" : formatPrice(p.price)}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                              </div>
+                              
+                              <div className="pt-2 flex justify-end">
+                                <Button 
+                                  variant="link" 
+                                  size="sm" 
+                                  className="text-primary font-bold h-8 p-0 hover:no-underline group"
+                                   onClick={() => setSelectedRouteId(r.id)}
+                                 >
+                                   Lihat Detail →
+                                 </Button>
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </CardContent>
+                      </Card>
+                    </Collapsible>
                   );
                 })}
               </div>

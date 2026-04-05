@@ -24,9 +24,7 @@
     "skipLibCheck": true,
     "strict": false,
     "target": "ES2020",
-    "types": [
-      "vitest/globals"
-    ],
+    "types": ["node", "react", "react-dom", "vite/client"],
     "useDefineForClassFields": true
   },
   "include": [
