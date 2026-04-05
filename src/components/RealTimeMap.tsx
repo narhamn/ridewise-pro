@@ -284,12 +284,18 @@ const RealTimeMap = ({
     mapReady ? mapInstance.current || undefined : undefined
   );
 
-  // Notify parent of route info changes
+  // Notify parent of route info changes — use stable primitives to avoid infinite loop
+  const routeInfoDistance = routeTracking.routeInfo?.totalDistance ?? null;
+  const routeInfoDuration = routeTracking.routeInfo?.totalDuration ?? null;
+  const routeIsLoading = routeTracking.isLoading;
+  const routeError = routeTracking.error;
+
   useEffect(() => {
     if (onRouteInfoChange && showRouteTracking) {
       onRouteInfoChange(routeTracking);
     }
-  }, [routeTracking, onRouteInfoChange, showRouteTracking]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeInfoDistance, routeInfoDuration, routeIsLoading, routeError, onRouteInfoChange, showRouteTracking]);
 
   // Real-time driver marker updates
   useEffect(() => {
