@@ -3,10 +3,9 @@ import { useShuttle } from '@/contexts/ShuttleContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatPrice } from '@/lib/pricing';
 import { format } from 'date-fns';
 import { MessageSquare, AlertCircle, Clock, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatIDR } from '@/lib/utils';
 import { TicketStatus, TicketPriority } from '@/types/shuttle';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/Pagination';
@@ -62,7 +61,7 @@ const AdminReports = () => {
           <div className="absolute -right-4 -bottom-4 bg-white/10 w-32 h-32 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
           <CardContent className="p-8 text-primary-foreground relative z-10">
             <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-2">Total Pendapatan</p>
-            <p className="text-3xl font-black tracking-tighter leading-none">{formatPrice(totalRevenue)}</p>
+            <p className="text-3xl font-black tracking-tighter leading-none">{formatIDR(totalRevenue)}</p>
             <div className="flex items-center gap-2 mt-4 text-[10px] font-bold bg-white/10 w-fit px-2 py-1 rounded-full">
               <span className="text-emerald-300">↑ 12.5%</span> dari bulan lalu
             </div>
@@ -105,7 +104,7 @@ const AdminReports = () => {
                       <p className="text-[10px] font-bold text-muted-foreground uppercase">{r.count} booking sukses</p>
                     </div>
                   </div>
-                  <p className="font-black text-primary tracking-tighter">{formatPrice(r.revenue)}</p>
+                  <p className="font-black text-primary tracking-tighter">{formatIDR(r.revenue)}</p>
                 </div>
               ))}
             </div>

@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { User, UserRole, Booking, Schedule, Route, RoutePoint, Driver, Vehicle, RayonPricing, RideRequest, Discount, TaxConfig, PricingAuditLog, DriverLocation, TrackingLog, Ticket, TicketStatus, TicketComment, DriverRegistration, VerificationStatus, VerificationLog } from '@/types/shuttle';
+import { User, UserRole, Booking, Schedule, Route, RoutePoint, Driver, Vehicle, RayonPricing, RideRequest, Discount, TaxConfig, PricingAuditLog, DriverLocation, TrackingLog, Ticket, TicketStatus, DriverRegistration, VerificationStatus } from '@/types/shuttle';
 import { dummyRoutes, dummyRoutePoints, dummySchedules, dummyDrivers, dummyVehicles, dummyBookings, defaultRayonPricing, dummyDiscounts, defaultTaxConfigs, dummyTickets, dummyRegistrations } from '@/data/dummy';
 import { calculateHaversineDistance, isValidRouteData } from '@/lib/utils';
 import { calculateFinalPrice } from '@/lib/pricing';
-import { processBookingOnServer, BookingRequest, BookingResponse } from '@/services/bookingServer';
+import { BookingRequest, BookingResponse } from '@/services/bookingServer';
 import { useNotifications } from './NotificationContext';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -30,11 +30,10 @@ interface ShuttleContextType {
   taxConfigs: TaxConfig[];
   auditLogs: PricingAuditLog[];
   driverLocations: Record<string, DriverLocation>;
-  trackingLogs: TrackingLog[];
   tickets: Ticket[];
   registrations: DriverRegistration[];
   updateDriverLocation: (driverId: string, location: DriverLocation) => void;
-  addAuditLog: (log: Omit<PricingAuditLog, 'id' | 'changeDate'>) => void;
+  addAuditLog: (log: Omit<PricingAuditLog, 'id' | 'changeDate' | 'changedBy'>) => void;
   createSecureBooking: (request: BookingRequest) => Promise<BookingResponse>;
   addBooking: (booking: Booking) => Promise<void>;
   updateScheduleStatus: (scheduleId: string, status: Schedule['status']) => Promise<void>;
@@ -89,7 +88,6 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   
   // Real-time tracking states
   const [driverLocations, setDriverLocations] = useState<Record<string, DriverLocation>>({});
-  const [trackingLogs, setTrackingLogs] = useState<TrackingLog[]>([]);
 
   // Derived state for registrations
   const registrations = drivers.filter(d => d.verificationStatus !== 'approved');
@@ -187,7 +185,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const addAuditLog = (log: Omit<PricingAuditLog, 'id' | 'changeDate'>) => {
+  const addAuditLog = (log: Omit<PricingAuditLog, 'id' | 'changeDate' | 'changedBy'>) => {
     const newLog: PricingAuditLog = {
       ...log,
       id: `log-${Date.now()}`,
@@ -707,7 +705,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     toast.success('Penugasan berhasil dibatalkan');
   };
 
-  const updateTripStatus = async (scheduleId: string, status: Schedule['status'], notes?: string) => {
+  const updateTripStatus = async (scheduleId: string, status: Schedule['status']) => {
     const { error } = await supabase
       .from('schedules')
       .update({ status, updated_at: new Date().toISOString() })
@@ -792,7 +790,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
       currentUser, loading, login, signup, logout,
       routes, routePoints, schedules, drivers, vehicles, bookings, rayonPricing, rideRequests,
       discounts, taxConfigs, auditLogs,
-      driverLocations, trackingLogs, updateDriverLocation,
+      driverLocations, updateDriverLocation,
       tickets, updateTicketStatus, addTicketComment,
       registrations, submitDriverRegistration, updateRegistrationStatus,
       addAuditLog, createSecureBooking, addBooking, updateScheduleStatus, addRideRequest, acceptRideRequest, rejectRideRequest, checkInPassenger,

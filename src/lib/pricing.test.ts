@@ -15,9 +15,9 @@ describe('Pricing Engine', () => {
       expect(calculateBasePrice(0, 10)).toBe(0);
     });
 
-    it('should throw error for negative values', () => {
-      expect(() => calculateBasePrice(-1, 1)).toThrow();
-      expect(() => calculateBasePrice(1, -1)).toThrow();
+    it('should handle negative values by clamping to 0', () => {
+      expect(calculateBasePrice(-1, 1)).toBe(0);
+      expect(calculateBasePrice(1, -1)).toBe(0);
     });
   });
 
@@ -45,9 +45,9 @@ describe('Pricing Engine', () => {
       expect(calculateDiscount(10000, 0.1)).toBe(1000);
     });
 
-    it('should throw error for invalid discount rate', () => {
-      expect(() => calculateDiscount(10000, -0.1)).toThrow();
-      expect(() => calculateDiscount(10000, 1.1)).toThrow();
+    it('should clamp invalid discount rates', () => {
+      expect(calculateDiscount(10000, -0.1)).toBe(0);
+      expect(calculateDiscount(10000, 1.1)).toBe(10000);
     });
   });
 
@@ -56,9 +56,9 @@ describe('Pricing Engine', () => {
       expect(calculateTax(10000, 0.11)).toBe(1100);
     });
 
-    it('should throw error for invalid tax rate', () => {
-      expect(() => calculateTax(10000, -0.1)).toThrow();
-      expect(() => calculateTax(10000, 1.1)).toThrow();
+    it('should clamp invalid tax rates', () => {
+      expect(calculateTax(10000, -0.1)).toBe(0);
+      expect(calculateTax(10000, 1.1)).toBe(10000);
     });
   });
 

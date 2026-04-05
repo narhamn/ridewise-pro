@@ -3,6 +3,8 @@
  * Sentralisasi logika perhitungan harga untuk aplikasi PYU GO.
  */
 
+import { PricingAuditLog } from "@/types/shuttle";
+
 export interface PricingMultipliers {
   roadCondition?: number;
   vehicleType?: number;
@@ -36,10 +38,9 @@ export interface PricingResult {
  * @returns Harga dasar (Base Price)
  */
 export const calculateBasePrice = (distanceMeters: number, pricePerMeter: number): number => {
-  if (distanceMeters < 0 || pricePerMeter < 0) {
-    throw new Error("Jarak dan harga per meter tidak boleh negatif");
-  }
-  return distanceMeters * pricePerMeter;
+  const distance = Math.max(0, distanceMeters);
+  const price = Math.max(0, pricePerMeter);
+  return distance * price;
 };
 
 /**
@@ -68,10 +69,8 @@ export const applyMultipliers = (price: number, multipliers?: PricingMultipliers
  * @returns Nilai nominal diskon
  */
 export const calculateDiscount = (amount: number, discountRate: number = 0): number => {
-  if (discountRate < 0 || discountRate > 1) {
-    throw new Error("Discount rate harus antara 0 dan 1");
-  }
-  return amount * discountRate;
+  const rate = Math.min(Math.max(0, discountRate), 1);
+  return amount * rate;
 };
 
 /**
@@ -82,10 +81,8 @@ export const calculateDiscount = (amount: number, discountRate: number = 0): num
  * @returns Nilai nominal pajak
  */
 export const calculateTax = (amount: number, taxRate: number = 0): number => {
-  if (taxRate < 0 || taxRate > 1) {
-    throw new Error("Tax rate harus antara 0 dan 1");
-  }
-  return amount * taxRate;
+  const rate = Math.min(Math.max(0, taxRate), 1);
+  return amount * rate;
 };
 
 /**
@@ -170,4 +167,15 @@ export const formatPrice = (amount: number, currency: string = 'IDR'): string =>
     style: 'currency',
     currency: currency,
   }).format(amount);
+};
+
+/**
+ * Validates a list of audit logs against pricing changes.
+ * 
+ * @param logs Array of PricingAuditLog
+ * @param rayon Rayon code
+ * @returns Filtered logs for the specific rayon
+ */
+export const getAuditLogsByRayon = (logs: PricingAuditLog[], rayon: 'A' | 'B' | 'C' | 'D'): PricingAuditLog[] => {
+  return logs.filter(log => log.rayon === rayon);
 };

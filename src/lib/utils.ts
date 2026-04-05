@@ -29,6 +29,17 @@ export function calculateHaversineDistance(
 }
 
 /**
+ * Formats a number as IDR currency.
+ */
+export function formatIDR(amount: number): string {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0
+  }).format(amount);
+}
+
+/**
  * Validates that a distance is positive and coordinates are valid.
  */
 export function isValidRouteData(lat1: number, lon1: number, lat2: number, lon2: number): boolean {

@@ -7,6 +7,7 @@ interface NotificationContextType {
   addNotification: (n: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: (role: UserRole) => void;
+  deleteNotification: (id: string) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -43,8 +44,12 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     setNotifications(prev => prev.map(n => n.role === role ? { ...n, read: true } : n));
   }, []);
 
+  const deleteNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, addNotification, markAsRead, markAllAsRead }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount, addNotification, markAsRead, markAllAsRead, deleteNotification }}>
       {children}
     </NotificationContext.Provider>
   );

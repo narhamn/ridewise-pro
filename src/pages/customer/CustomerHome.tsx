@@ -3,6 +3,7 @@ import { useShuttle } from '@/contexts/ShuttleContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, ChevronRight, History, Navigation, Sparkles } from 'lucide-react';
+import { formatIDR } from '@/lib/utils';
 
 const rayonColors: Record<string, string> = {
   A: 'bg-blue-500/10 text-blue-600 border-blue-200',
@@ -152,7 +153,7 @@ const CustomerHome = () => {
                           </div>
                           <div className="flex flex-col items-end gap-1">
                             <span className="text-xs font-black text-foreground">
-                              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(route.price)}
+                              {formatIDR(route.price)}
                             </span>
                             <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:translate-x-1 transition-transform" />
                           </div>

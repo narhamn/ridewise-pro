@@ -11,7 +11,7 @@ import {
   Navigation,
   ShieldCheck
 } from 'lucide-react';
-import { formatPrice } from '@/lib/pricing';
+import { formatIDR } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
