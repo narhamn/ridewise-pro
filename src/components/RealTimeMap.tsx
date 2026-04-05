@@ -2,7 +2,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { cn } from '@/lib/utils';
-import { OSM_ATTRIBUTION, OSM_DE_TILE_URL, OSM_DE_ATTRIBUTION, OSM_TILE_URL } from '@/lib/map-tiles';
+import { OSM_ATTRIBUTION, OSM_TILE_URL } from '@/lib/map-tiles';
+
+const OSM_DE_TILE_URL = 'https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png';
+const OSM_DE_ATTRIBUTION = '© OpenStreetMap contributors';
 import { DriverLocation, TrackingLog, Schedule, Driver, Route, RoutePoint } from '@/types/shuttle';
 import { toast } from 'sonner';
 import { useRouteTracking, RouteInfoPanel, ETADisplay, RouteTrackingHookResult } from '@/components/RouteTrackingDisplay';
