@@ -45,6 +45,7 @@ import AdminPaymentSettings from "./pages/admin/AdminPaymentSettings";
 import AdminTicketDetail from "./pages/admin/AdminTicketDetail";
 import AdminDriverVerification from "./pages/admin/AdminDriverManager";
 import DriverRegister from "./pages/driver/DriverRegister";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -66,7 +67,11 @@ const App = () => (
 
               {/* Customer */}
               <Route path="/customer/login" element={<CustomerLogin />} />
-              <Route path="/customer" element={<CustomerLayout />}>
+              <Route path="/customer" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerLayout />
+                </ProtectedRoute>
+              }>
                 <Route index element={<CustomerHome />} />
                 <Route path="route/:routeId" element={<CustomerRouteDetail />} />
                 <Route path="booking/new" element={<CustomerBookingNew />} />
@@ -80,7 +85,11 @@ const App = () => (
               {/* Driver */}
               <Route path="/driver/login" element={<DriverLogin />} />
               <Route path="/driver/register" element={<DriverRegister />} />
-              <Route path="/driver" element={<DriverLayout />}>
+              <Route path="/driver" element={
+                <ProtectedRoute allowedRoles={['driver']}>
+                  <DriverLayout />
+                </ProtectedRoute>
+              }>
                 <Route index element={<DriverDashboard />} />
                 <Route path="trips" element={<DriverTrips />} />
                 <Route path="trip/:scheduleId" element={<DriverTripDetail />} />
@@ -90,7 +99,11 @@ const App = () => (
 
               {/* Admin */}
               <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin" element={<AdminLayout />}>
+              <Route path="/admin" element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }>
                 <Route index element={<AdminDashboard />} />
                 <Route path="routes" element={<AdminRoutes />} />
                 

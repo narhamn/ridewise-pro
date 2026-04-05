@@ -17,6 +17,7 @@ const DriverLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const { login } = useShuttle();
   const navigate = useNavigate();
 
@@ -25,9 +26,21 @@ const DriverLogin = () => {
     if (error) setError('');
   };
 
+  const validateEmail = (email: string) => {
+    return String(email)
+      .toLowerCase()
+      .match(
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+      );
+  };
+
   const validateForm = () => {
     if (!formData.email.trim()) {
       setError('Email wajib diisi');
+      return false;
+    }
+    if (!validateEmail(formData.email)) {
+      setError('Format email tidak valid');
       return false;
     }
     if (!formData.password.trim()) {
@@ -45,14 +58,14 @@ const DriverLogin = () => {
 
     setIsLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      login(formData.email, formData.password, 'driver');
-      toast.success('Login berhasil! Selamat datang kembali.');
-      navigate('/driver');
-    } catch (err) {
-      setError('Email atau password salah. Silakan coba lagi.');
+      const success = await login(formData.email, formData.password, 'driver');
+      if (success) {
+        navigate('/driver');
+      } else {
+        setError('Email atau password salah, atau Anda belum terdaftar sebagai Driver.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Terjadi kesalahan. Silakan coba lagi.');
     } finally {
       setIsLoading(false);
     }
@@ -138,6 +151,21 @@ const DriverLogin = () => {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+            </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <label className="flex items-center space-x-2 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border-slate-300 text-green-600 focus:ring-green-500 h-4 w-4 transition-all"
+                />
+                <span className="text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">Ingat Saya</span>
+              </label>
+              <Link to="/forgot-password" title="Fitur ini akan segera tersedia" className="text-green-600 hover:text-green-700 font-medium transition-colors">
+                Lupa Password?
+              </Link>
             </div>
 
             <Button

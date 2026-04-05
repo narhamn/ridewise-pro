@@ -287,12 +287,17 @@ export interface TaxConfig {
 
 export interface PricingAuditLog {
   id: string;
-  rayon: 'A' | 'B' | 'C' | 'D';
-  oldPrice: number;
-  newPrice: number;
+  rayon?: 'A' | 'B' | 'C' | 'D';
+  oldPrice?: number;
+  newPrice?: number;
   changedBy: string; // User Name or ID
   changeDate: string; // ISO String
-  reason: string;
+  reason?: string;
+  entityType?: string;
+  entityId?: string;
+  action?: string;
+  oldValue?: any;
+  newValue?: any;
 }
 
 export interface DriverLocation {

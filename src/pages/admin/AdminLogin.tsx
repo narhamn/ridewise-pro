@@ -17,6 +17,8 @@ const AdminLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [show2FA, setShow2FA] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
   const { login } = useShuttle();
   const navigate = useNavigate();
 
@@ -41,19 +43,41 @@ const AdminLogin = () => {
     e.preventDefault();
     setError('');
 
+    if (show2FA) {
+      if (twoFactorCode === '123456') { // Mock 2FA validation
+        setIsLoading(true);
+        try {
+          const success = await login(formData.email, formData.password, 'admin');
+          if (success) {
+            navigate('/admin');
+          } else {
+            setError('Sesi kedaluwarsa. Silakan login kembali.');
+            setShow2FA(false);
+          }
+        } catch (err: any) {
+          setError(err.message || 'Terjadi kesalahan sistem.');
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setError('Kode 2FA salah. Gunakan kode 123456 untuk simulasi.');
+      }
+      return;
+    }
+
     if (!validateForm()) return;
 
     setIsLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      login(formData.email, formData.password, 'admin');
-      toast.success('Login berhasil! Selamat datang di Admin Panel.');
-      navigate('/admin');
+      // Step 1: Check credentials (mocking 2FA trigger)
+      // In real scenario, Supabase would handle 2FA
+      setTimeout(() => {
+        setShow2FA(true);
+        setIsLoading(false);
+        toast.info('Simulasi 2FA aktif. Masukkan kode 123456.');
+      }, 1000);
     } catch (err) {
       setError('Kredensial admin tidak valid. Silakan coba lagi.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -94,51 +118,95 @@ const AdminLogin = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-700 dark:text-slate-300 font-medium">
-                Email Admin
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Masukkan email admin"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="pl-10 border-slate-200 dark:border-slate-600 focus:border-purple-500 focus:ring-purple-500"
-                  disabled={isLoading}
-                  required
-                />
-              </div>
-            </div>
+            {!show2FA ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-slate-700 dark:text-slate-300 font-medium">
+                    Email Admin
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Masukkan email admin"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className="pl-10 border-slate-200 dark:border-slate-600 focus:border-purple-500 focus:ring-purple-500"
+                      disabled={isLoading}
+                      required
+                    />
+                  </div>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-700 dark:text-slate-300 font-medium">
-                Password
-              </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Masukkan password admin"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  className="pl-10 pr-10 border-slate-200 dark:border-slate-600 focus:border-purple-500 focus:ring-purple-500"
-                  disabled={isLoading}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                  disabled={isLoading}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-slate-700 dark:text-slate-300 font-medium">
+                    Password
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Masukkan password admin"
+                      value={formData.password}
+                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      className="pl-10 pr-10 border-slate-200 dark:border-slate-600 focus:border-purple-500 focus:ring-purple-500"
+                      disabled={isLoading}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      disabled={isLoading}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4 animate-in slide-in-from-right-2 duration-500">
+                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800 flex flex-col items-center text-center space-y-2">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-800 rounded-full">
+                    <Shield className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <h3 className="font-bold text-slate-900 dark:text-white">Verifikasi 2-Langkah</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-[200px]">
+                    Kami telah mengirimkan kode verifikasi ke perangkat admin Anda.
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="2fa" className="text-slate-700 dark:text-slate-300 font-medium text-center block">
+                    Kode Verifikasi (OTP)
+                  </Label>
+                  <Input
+                    id="2fa"
+                    type="text"
+                    placeholder="Masukkan 6 digit kode"
+                    maxLength={6}
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, ''))}
+                    className="text-center text-2xl tracking-[1em] font-mono border-slate-200 dark:border-slate-600 focus:border-purple-500 focus:ring-purple-500"
+                    autoFocus
+                  />
+                  <div className="flex justify-center">
+                    <Button 
+                      variant="link" 
+                      className="text-xs text-purple-600 dark:text-purple-400"
+                      onClick={() => {
+                        setShow2FA(false);
+                        setTwoFactorCode('');
+                      }}
+                    >
+                      Kembali ke Login
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             <Button
               type="submit"
@@ -148,11 +216,11 @@ const AdminLogin = () => {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Masuk...
+                  {show2FA ? 'Memverifikasi...' : 'Masuk...'}
                 </>
               ) : (
                 <>
-                  Masuk ke Admin Panel
+                  {show2FA ? 'Verifikasi & Lanjut' : 'Masuk ke Admin Panel'}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               )}

@@ -7,11 +7,16 @@ import { processBookingOnServer, BookingRequest, BookingResponse } from '@/servi
 import { useNotifications } from './NotificationContext';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { bookingRepository } from '@/repositories/BookingRepository';
+import { routeRepository } from '@/repositories/RouteRepository';
+import { driverRepository } from '@/repositories/DriverRepository';
+import { ticketRepository } from '@/repositories/TicketRepository';
 
 interface ShuttleContextType {
   currentUser: User | null;
   loading: boolean;
   login: (email: string, password: string, role: UserRole) => Promise<boolean>;
+  signup: (email: string, password: string, name: string, role: UserRole) => Promise<boolean>;
   logout: () => Promise<void>;
   routes: Route[];
   routePoints: RoutePoint[];
@@ -72,7 +77,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   const [routes, setRoutes] = useState<Route[]>(dummyRoutes);
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>(dummyRoutePoints);
   const [schedules, setSchedules] = useState<Schedule[]>(dummySchedules);
-  const [drivers, setDrivers] = useState<Driver[]>(dummyDrivers);
+  const [drivers, setDrivers] = useState<Driver[]>([...dummyDrivers, ...dummyRegistrations]);
   const [vehicles, setVehicles] = useState<Vehicle[]>(dummyVehicles);
   const [bookings, setBookings] = useState<Booking[]>(dummyBookings);
   const [rayonPricing, setRayonPricing] = useState<RayonPricing[]>(defaultRayonPricing);
@@ -85,6 +90,9 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   // Real-time tracking states
   const [driverLocations, setDriverLocations] = useState<Record<string, DriverLocation>>({});
   const [trackingLogs, setTrackingLogs] = useState<TrackingLog[]>([]);
+
+  // Derived state for registrations
+  const registrations = drivers.filter(d => d.verificationStatus !== 'approved');
 
   // Fetch data from Supabase on mount
   useEffect(() => {
@@ -103,21 +111,21 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
           if (profile) setCurrentUser(profile);
         }
 
-        // Fetch Business Data (Routes, Vehicles, etc.)
+        // Fetch Business Data using Repositories
         const [
-          { data: dbRoutes },
-          { data: dbPoints },
-          { data: dbSchedules },
-          { data: dbVehicles },
-          { data: dbDrivers },
-          { data: dbBookings }
+          dbRoutes,
+          dbPoints,
+          dbSchedules,
+          dbVehicles,
+          dbDrivers,
+          dbBookings
         ] = await Promise.all([
-          supabase.from('routes').select('*'),
-          supabase.from('route_points').select('*'),
-          supabase.from('schedules').select('*'),
-          supabase.from('vehicles').select('*'),
-          supabase.from('drivers').select('*'),
-          supabase.from('bookings').select('*')
+          routeRepository.getAll(),
+          supabase.from('route_points').select('*').then(res => res.data),
+          supabase.from('schedules').select('*').then(res => res.data),
+          supabase.from('vehicles').select('*').then(res => res.data),
+          driverRepository.getAll(),
+          bookingRepository.getAll()
         ]);
 
         if (dbRoutes) setRoutes(dbRoutes);
@@ -140,7 +148,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     // Setup Realtime Subscriptions
     const schedulesSubscription = supabase
       .channel('public:schedules')
-      .on('postgres_changes', { event: '*', table: 'schedules' }, payload => {
+      .on('postgres_changes', { event: '*', table: 'schedules' } as any, (payload: any) => {
         const updatedSchedule = payload.new as Schedule;
         setSchedules(prev => {
           if (payload.eventType === 'INSERT') return [...prev, updatedSchedule];
@@ -158,7 +166,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
 
     const locationsSubscription = supabase
       .channel('public:driver_locations')
-      .on('postgres_changes', { event: '*', table: 'driver_locations' }, payload => {
+      .on('postgres_changes', { event: '*', table: 'driver_locations' } as any, (payload: any) => {
         const newLocation = payload.new as DriverLocation;
         setDriverLocations(prev => ({ ...prev, [newLocation.driverId]: newLocation }));
       })
@@ -171,46 +179,38 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const updateDriverLocation = useCallback(async (driverId: string, location: DriverLocation) => {
-    // Update Supabase
-    const { error } = await supabase
-      .from('driver_locations')
-      .upsert({
-        driver_id: driverId,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        speed: location.speed,
-        accuracy: location.accuracy,
-        updated_at: location.timestamp
-      });
-
-    if (error) {
+    try {
+      await driverRepository.updateLocation(driverId, location);
+      setDriverLocations(prev => ({ ...prev, [driverId]: location }));
+    } catch (error) {
       console.error('Error updating driver location:', error);
-      return;
     }
-
-    setDriverLocations(prev => ({
-      ...prev,
-      [driverId]: location
-    }));
-
-    // Record to tracking log (Optional: Can be done via DB Trigger or Edge Function)
-    const newLog: TrackingLog = {
-      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      entityId: driverId,
-      entityType: 'driver',
-      latitude: location.latitude,
-      longitude: location.longitude,
-      speed: location.speed,
-      timestamp: location.timestamp
-    };
-
-    setTrackingLogs(prev => [newLog, ...prev].slice(0, 1000));
   }, []);
+
+  const addAuditLog = (log: Omit<PricingAuditLog, 'id' | 'changeDate'>) => {
+    const newLog: PricingAuditLog = {
+      ...log,
+      id: `log-${Date.now()}`,
+      changeDate: new Date().toISOString(),
+      changedBy: currentUser?.name || 'System'
+    };
+    setAuditLogs(prev => [newLog, ...prev]);
+  };
 
   const login = async (email: string, password: string, role: UserRole): Promise<boolean> => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) {
+        // Log failed attempt
+        addAuditLog({
+          entityType: 'user',
+          entityId: email,
+          action: 'login_failed',
+          oldValue: null,
+          newValue: { error: error.message, role }
+        });
+        throw error;
+      }
 
       if (data.user) {
         const { data: profile } = await supabase
@@ -223,10 +223,29 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
           if (profile.role !== role) {
             await supabase.auth.signOut();
             toast.error(`Akses ditolak. Akun Anda terdaftar sebagai ${profile.role}.`);
+            
+            // Log role mismatch
+            addAuditLog({
+              entityType: 'user',
+              entityId: data.user.id,
+              action: 'login_role_mismatch',
+              oldValue: { expected: role },
+              newValue: { actual: profile.role }
+            });
             return false;
           }
+          
           setCurrentUser(profile);
           toast.success(`Selamat datang kembali, ${profile.name}!`);
+
+          // Log successful login
+          addAuditLog({
+            entityType: 'user',
+            entityId: data.user.id,
+            action: 'login_success',
+            oldValue: null,
+            newValue: { role: profile.role }
+          });
           return true;
         }
       }
@@ -237,7 +256,49 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const signup = async (email: string, password: string, name: string, role: UserRole = 'customer'): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name, role }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Profile is created via database trigger on auth.users insert
+        toast.success('Pendaftaran berhasil! Silakan cek email untuk verifikasi.');
+        
+        // Log signup
+        addAuditLog({
+          entityType: 'user',
+          entityId: data.user.id,
+          action: 'signup_success',
+          oldValue: null,
+          newValue: { name, role, email }
+        });
+        return true;
+      }
+      return false;
+    } catch (error: any) {
+      toast.error(`Pendaftaran gagal: ${error.message}`);
+      return false;
+    }
+  };
+
   const logout = async () => {
+    if (currentUser) {
+      addAuditLog({
+        entityType: 'user',
+        entityId: currentUser.id,
+        action: 'logout',
+        oldValue: null,
+        newValue: null
+      });
+    }
     await supabase.auth.signOut();
     setCurrentUser(null);
   };
@@ -253,24 +314,26 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const createSecureBooking = async (request: BookingRequest): Promise<BookingResponse> => {
-    // In a real Supabase setup, this would call an Edge Function
-    // const { data, error } = await supabase.functions.invoke('process-booking', { body: request });
-    
-    const response = processBookingOnServer(request, {
-      users: currentUser ? [currentUser] : [],
-      schedules,
-      routes,
-      routePoints,
-      discounts,
-      taxConfigs,
-      existingBookings: bookings
-    });
-
-    if (response.success && response.booking) {
-      await addBooking(response.booking);
+    try {
+      setLoading(true);
+      const response = await bookingRepository.createSecureBooking(request);
+      
+      if (response.success && response.booking) {
+        setBookings(prev => [...prev, response.booking!]);
+        notifyBookingCreated(response.booking!);
+        toast.success('Booking berhasil dikonfirmasi!');
+      } else {
+        toast.error(response.error || 'Booking gagal.');
+      }
+      
+      return response;
+    } catch (error: any) {
+      console.error('Secure booking error:', error);
+      toast.error('Gagal memproses booking. Silakan coba lagi.');
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
     }
-
-    return response;
   };
 
   const updateScheduleStatus = async (scheduleId: string, status: Schedule['status']) => {
@@ -361,95 +424,68 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateTicketStatus = async (ticketId: string, status: TicketStatus, note?: string) => {
-    const historyItem = {
-      id: `h-${Date.now()}`,
-      ticketId,
-      status,
-      changedBy: currentUser?.name || 'System',
-      timestamp: new Date().toISOString(),
-      note
-    };
-
-    const { error } = await supabase
-      .from('tickets')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', ticketId);
-
-    if (error) {
+    try {
+      await ticketRepository.updateStatus(ticketId, status, currentUser?.name || 'System', note);
+      
+      setTickets(prev => prev.map(t => {
+        if (t.id !== ticketId) return t;
+        return {
+          ...t,
+          status,
+          updatedAt: new Date().toISOString()
+        };
+      }));
+      toast.success(`Status tiket diperbarui menjadi ${status}`);
+    } catch (error) {
+      console.error('Update ticket error:', error);
       toast.error('Gagal memperbarui status tiket.');
-      return;
     }
-
-    // Insert history
-    await supabase.from('ticket_history').insert(historyItem);
-
-    setTickets(prev => prev.map(t => {
-      if (t.id !== ticketId) return t;
-      return {
-        ...t,
-        status,
-        updatedAt: new Date().toISOString(),
-        history: [...t.history, historyItem]
-      };
-    }));
-    toast.success(`Status tiket diperbarui menjadi ${status}`);
   };
 
   const addTicketComment = async (ticketId: string, message: string, attachments?: string[]) => {
     if (!currentUser) return;
-    const newComment: TicketComment = {
-      id: `c-${Date.now()}`,
-      ticketId,
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      senderRole: currentUser.role,
-      message,
-      timestamp: new Date().toISOString(),
-      attachments
-    };
+    try {
+      const newComment = await ticketRepository.addComment({
+        ticketId,
+        senderId: currentUser.id,
+        senderName: currentUser.name,
+        senderRole: currentUser.role,
+        message,
+        attachments
+      });
 
-    const { error } = await supabase.from('ticket_comments').insert(newComment);
-    if (error) {
+      setTickets(prev => prev.map(t => {
+        if (t.id !== ticketId) return t;
+        return {
+          ...t,
+          updatedAt: new Date().toISOString(),
+          comments: [...t.comments, newComment]
+        };
+      }));
+      toast.success('Komentar ditambahkan');
+    } catch (error) {
+      console.error('Add comment error:', error);
       toast.error('Gagal menambahkan komentar.');
-      return;
     }
-
-    setTickets(prev => prev.map(t => {
-      if (t.id !== ticketId) return t;
-      return {
-        ...t,
-        updatedAt: new Date().toISOString(),
-        comments: [...t.comments, newComment]
-      };
-    }));
-    toast.success('Komentar ditambahkan');
   };
 
   const submitDriverRegistration = async (reg: Omit<Driver, 'id' | 'verificationStatus' | 'submittedAt' | 'updatedAt' | 'logs' | 'status' | 'rating' | 'totalTrips' | 'joinDate'>) => {
-    const regId = `reg-${Date.now()}`;
-    const newReg: Driver = {
-      ...reg,
-      id: regId,
-      status: 'offline',
-      verificationStatus: 'pending', 
-      rating: 0,
-      totalTrips: 0,
-      joinDate: new Date().toISOString().split('T')[0],
-      submittedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      logs: [
-        { id: `l-${Date.now()}`, registrationId: regId, status: 'pending', changedBy: 'System', timestamp: new Date().toISOString(), reason: 'Initial submission' }
-      ]
-    };
+    try {
+      const newReg = await driverRepository.create({
+        ...reg,
+        status: 'offline',
+        verificationStatus: 'pending',
+        rating: 0,
+        totalTrips: 0,
+        joinDate: new Date().toISOString().split('T')[0]
+      });
 
-    const { error } = await supabase.from('drivers').insert(newReg);
-    if (error) {
+      setDrivers(prev => [...prev, newReg]);
+      toast.success('Pendaftaran driver berhasil dikirim. Mohon tunggu verifikasi admin.');
+    } catch (error) {
+      console.error('Submit registration error:', error);
       toast.error('Gagal mengirim pendaftaran.');
-      return;
     }
-
-    setDrivers(prev => [...prev, newReg]);
-    toast.success('Pendaftaran driver berhasil dikirim. Mohon tunggu verifikasi admin.');
   };
 
   const updateRegistrationStatus = async (registrationId: string, status: VerificationStatus, reason?: string) => {
@@ -458,82 +494,33 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    const registration = drivers.find(r => r.id === registrationId);
-    if (!registration) {
-      toast.error('Pendaftaran tidak ditemukan.');
-      return;
-    }
+    try {
+      await driverRepository.updateVerification(registrationId, status, reason);
 
-    if (status === 'approved') {
-      const isDuplicate = drivers.some(d => 
-        d.id !== registrationId && d.verificationStatus === 'approved' && (
-          d.licenseNumber === registration.licenseNumber || 
-          d.phoneNumber === registration.phoneNumber ||
-          d.vehicleDetails?.plateNumber === registration.vehicleDetails?.plateNumber
-        )
-      );
-
-      if (isDuplicate) {
-        toast.error('Gagal menyetujui: Data driver atau kendaraan sudah terdaftar dalam sistem.');
-        return;
-      }
-    }
-
-    const newLog: VerificationLog = {
-      id: `l-${Date.now()}`,
-      registrationId,
-      status,
-      changedBy: currentUser.name,
-      timestamp: new Date().toISOString(),
-      reason
-    };
-
-    const { error } = await supabase
-      .from('drivers')
-      .update({
-        verification_status: status,
-        rejection_reason: status === 'rejected' ? reason : registration.rejectionReason,
-        updated_at: new Date().toISOString(),
-        vehicle_details: registration.vehicleDetails ? {
-          ...registration.vehicleDetails,
+      setDrivers(prev => prev.map(r => {
+        if (r.id !== registrationId) return r;
+        return {
+          ...r,
           verificationStatus: status,
-        } : undefined
-      })
-      .eq('id', registrationId);
+          rejectionReason: status === 'rejected' ? reason : r.rejectionReason,
+          updatedAt: new Date().toISOString()
+        };
+      }));
 
-    if (error) {
+      addNotification({
+        title: status === 'approved' ? 'Pendaftaran Disetujui' : 'Pendaftaran Ditolak',
+        message: status === 'approved' 
+          ? `Selamat, pendaftaran Anda telah disetujui. Anda sekarang dapat login sebagai driver.`
+          : `Mohon maaf, pendaftaran Anda ditolak. Alasan: ${reason || 'Data tidak lengkap'}`,
+        type: 'system',
+        role: 'driver'
+      });
+      
+      toast.success(`Status pendaftaran diperbarui menjadi ${status}`);
+    } catch (error) {
+      console.error('Update registration status error:', error);
       toast.error('Gagal memperbarui status pendaftaran.');
-      return;
     }
-
-    // Insert log
-    await supabase.from('verification_logs').insert(newLog);
-
-    setDrivers(prev => prev.map(r => {
-      if (r.id !== registrationId) return r;
-      return {
-        ...r,
-        verificationStatus: status,
-        rejectionReason: status === 'rejected' ? reason : r.rejectionReason,
-        updatedAt: new Date().toISOString(),
-        logs: r.logs ? [...r.logs, newLog] : [newLog],
-        vehicleDetails: r.vehicleDetails ? {
-          ...r.vehicleDetails,
-          verificationStatus: status,
-        } : undefined
-      };
-    }));
-
-    addNotification({
-      title: status === 'approved' ? 'Pendaftaran Disetujui' : 'Pendaftaran Ditolak',
-      message: status === 'approved' 
-        ? `Selamat ${registration.name}, pendaftaran Anda telah disetujui. Anda sekarang dapat login sebagai driver.`
-        : `Mohon maaf, pendaftaran Anda ditolak. Alasan: ${reason || 'Data tidak lengkap'}`,
-      type: 'system',
-      role: 'driver'
-    });
-    
-    toast.success(`Status pendaftaran diperbarui menjadi ${status}`);
   };
 
   const updateDriverStatus = async (driverId: string, status: 'online' | 'offline'): Promise<boolean> => {
@@ -802,7 +789,7 @@ export const ShuttleProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <ShuttleContext.Provider value={{
-      currentUser, login, logout,
+      currentUser, loading, login, signup, logout,
       routes, routePoints, schedules, drivers, vehicles, bookings, rayonPricing, rideRequests,
       discounts, taxConfigs, auditLogs,
       driverLocations, trackingLogs, updateDriverLocation,

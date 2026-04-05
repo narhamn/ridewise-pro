@@ -1,9 +1,20 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useShuttle } from '@/contexts/ShuttleContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Bus, Truck, Shield, Sparkles, ArrowRight } from 'lucide-react';
 
 const Index = () => {
   const navigate = useNavigate();
+  const { currentUser } = useShuttle();
+
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.role === 'admin') navigate('/admin');
+      else if (currentUser.role === 'driver') navigate('/driver');
+      else navigate('/customer');
+    }
+  }, [currentUser, navigate]);
 
   const roles = [
     {
