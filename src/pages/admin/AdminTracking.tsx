@@ -63,10 +63,11 @@ const AdminTracking = () => {
   // Combine context data with real-time data
   const driverLocations = { ...rtDriverLocations };
   const trackingLogs = rtTrackingLogs;
-  const activeSchedules = rtActiveSchedules.length > 0 ? rtActiveSchedules : useMemo(() =>
+  const fallbackSchedules = useMemo(() =>
     schedules.filter(s => s.driverId && (s.status === 'departed' || s.status === 'boarding')),
     [schedules]
   );
+  const activeSchedules = rtActiveSchedules.length > 0 ? rtActiveSchedules : fallbackSchedules;
 
   const filteredSchedules = useMemo(() => {
     if (!searchQuery) return activeSchedules;
